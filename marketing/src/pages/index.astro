@@ -1,0 +1,364 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Tap2 Wallet - Pay with a Tap">
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1 class="hero-title">Tap2 Wallet</h1>
+        <p class="hero-tagline">The future of mobile payments. Pay with a tap, send money instantly, earn rewards automatically.</p>
+        <form id="waitlist-form" class="waitlist-form">
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+            class="email-input"
+          />
+          <button type="submit" class="submit-button">Join Waitlist</button>
+        </form>
+        <div id="form-message" class="form-message"></div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="container">
+        <h2 class="features-title">Why Tap2 Wallet?</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>Tap to Pay</h3>
+            <p>Pay at any Tap2 merchant with a single tap. No apps to open, no cards to fetch.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💸</div>
+            <h3>P2P Transfers</h3>
+            <p>Send money to friends instantly. Just tap phones together to transfer.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎁</div>
+            <h3>Auto Rewards</h3>
+            <p>Earn rewards automatically at every purchase. Use points at any Tap2 merchant.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💳</div>
+            <h3>Virtual Card</h3>
+            <p>Get a virtual debit card for online shopping. Freeze and unfreeze instantly.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🏦</div>
+            <h3>Bank Integration</h3>
+            <p>Connect any bank account or card. Add money instantly or cash out when you need.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Track Spending</h3>
+            <p>See all your transactions in one place. Filter by date, merchant, or amount.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="benefits">
+      <div class="container">
+        <h2 class="benefits-title">Simplify Your Payments</h2>
+        <div class="benefits-list">
+          <div class="benefit-item">
+            <h3>One Wallet for Everything</h3>
+            <p>No more juggling multiple apps. Tap2 Wallet works everywhere Tap2 is accepted.</p>
+          </div>
+          <div class="benefit-item">
+            <h3>Never Miss Rewards</h3>
+            <p>Points are credited automatically. No cards to forget, no codes to enter.</p>
+          </div>
+          <div class="benefit-item">
+            <h3>Lightning Fast</h3>
+            <p>Payments complete in under 3 seconds. Instant confirmation with haptic feedback.</p>
+          </div>
+          <div class="benefit-item">
+            <h3>Free P2P Transfers</h3>
+            <p>Send money to friends instantly with zero fees. No more splitting bills manually.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="container">
+        <h2 class="cta-title">Ready to Transform How You Pay?</h2>
+        <p class="cta-text">Join thousands waiting for the future of mobile payments.</p>
+        <form id="waitlist-form-2" class="waitlist-form">
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+            class="email-input"
+          />
+          <button type="submit" class="submit-button">Get Early Access</button>
+        </form>
+        <div id="form-message-2" class="form-message"></div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  function setupForm(formId: string, messageId: string) {
+    const form = document.getElementById(formId) as HTMLFormElement;
+    const messageDiv = document.getElementById(messageId) as HTMLDivElement;
+
+    if (!form || !messageDiv) return;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+
+      messageDiv.textContent = 'Joining waitlist...';
+      messageDiv.className = 'form-message info';
+
+      try {
+        const response = await fetch('https://api.claude-remote.com/api/waitlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            projectRepo: 'github.com/Andrejs1979/tap2-wallet'
+          }),
+        });
+
+        if (response.ok) {
+          messageDiv.textContent = '🎉 You\'re on the list! We\'ll be in touch soon.';
+          messageDiv.className = 'form-message success';
+          form.reset();
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          messageDiv.textContent = errorData.message || 'Failed to join waitlist. Please try again.';
+          messageDiv.className = 'form-message error';
+        }
+      } catch (error) {
+        messageDiv.textContent = 'Network error. Please check your connection and try again.';
+        messageDiv.className = 'form-message error';
+      }
+    });
+  }
+
+  setupForm('waitlist-form', 'form-message');
+  setupForm('waitlist-form-2', 'form-message-2');
+</script>
+
+<style>
+  main {
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* Hero Section */
+  .hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8rem 0 6rem;
+    text-align: center;
+  }
+
+  .hero-title {
+    font-size: 4rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-tagline {
+    font-size: 1.5rem;
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    line-height: 1.6;
+    opacity: 0.95;
+  }
+
+  .waitlist-form {
+    display: flex;
+    gap: 1rem;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .email-input {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+  }
+
+  .submit-button {
+    padding: 1rem 2rem;
+    background: #1a1a1a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .submit-button:hover {
+    transform: translateY(-2px);
+    background: #2a2a2a;
+  }
+
+  .form-message {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+  }
+
+  .form-message.success {
+    color: #a7f3d0;
+  }
+
+  .form-message.error {
+    color: #fecaca;
+  }
+
+  .form-message.info {
+    color: #fef3c7;
+  }
+
+  /* Features Section */
+  .features {
+    padding: 6rem 0;
+    background: #f9fafb;
+  }
+
+  .features-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 4rem;
+    color: #1a1a1a;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+
+  .feature-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #1a1a1a;
+  }
+
+  .feature-card p {
+    color: #6b7280;
+    line-height: 1.6;
+  }
+
+  /* Benefits Section */
+  .benefits {
+    padding: 6rem 0;
+  }
+
+  .benefits-title {
+    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 4rem;
+    color: #1a1a1a;
+  }
+
+  .benefits-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 3rem;
+  }
+
+  .benefit-item h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #1a1a1a;
+  }
+
+  .benefit-item p {
+    color: #6b7280;
+    line-height: 1.6;
+    font-size: 1.1rem;
+  }
+
+  /* CTA Section */
+  .cta {
+    background: #1a1a1a;
+    color: white;
+    padding: 6rem 0;
+    text-align: center;
+  }
+
+  .cta-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+
+  .cta-text {
+    font-size: 1.25rem;
+    margin-bottom: 3rem;
+    opacity: 0.9;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero-title {
+      font-size: 2.5rem;
+    }
+
+    .hero-tagline {
+      font-size: 1.2rem;
+    }
+
+    .waitlist-form {
+      flex-direction: column;
+    }
+
+    .features-title,
+    .benefits-title,
+    .cta-title {
+      font-size: 2rem;
+    }
+
+    .features-grid,
+    .benefits-list {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
