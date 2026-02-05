@@ -144,11 +144,80 @@ interface NFCPayload {
 | Monitoring | Sentry | Error tracking |
 | Logging | Datadog | Structured logs |
 
+### 1.4 Network Resilience & Offline Support
+
+Payment transactions require reliable network connectivity. The following strategies ensure resilience:
+
+**Retry Strategy:**
+```typescript
+// Exponential backoff for failed API calls
+const retryConfig = {
+  maxRetries: 3,
+  initialDelay: 100,   // ms
+  maxDelay: 1000,      // ms
+  backoffMultiplier: 2
+};
+// Sequence: 100ms → 200ms → 400ms → (fail)
+```
+
+**Offline Queue:**
+- Pending payments stored locally in AsyncStorage
+- Automatically sync when network restored
+- Conflict resolution: server timestamp takes precedence
+
+**Network Detection:**
+```typescript
+// @react-native-community/netinfo
+const unsubscribe = await NetInfo.addEventListener(state => {
+  if (state.isConnected) {
+    syncPendingPayments();
+  }
+});
+```
+
+**Payment State Management:**
+| State | Description | User Action |
+|-------|-------------|-------------|
+| `pending` | Created locally, awaiting sync | Show spinner |
+| `syncing` | actively communicating with server | Show progress |
+| `completed` | Successfully processed | Show receipt |
+| `failed` | Permanent failure | Show error + retry option |
+| `offline_queued` | No network, queued for sync | Show "will complete when online" |
+
 ## Phase 2: Mobile App - NFC Payment
 
 ### 2.1 NFC Integration
 
 **Library:** `react-native-nfc-manager`
+
+### NDEF Payload Specification
+
+Merchant devices broadcast payment data via NFC using the following NDEF format:
+
+```typescript
+// NDEF Record Format
+// TNF: WELL_KNOWN (0x01)
+// Type: "application/json"
+// Payload: JSON string
+
+interface MerchantNDEFPayload {
+  v: string;        // Protocol version (e.g., "1.0")
+  m: string;        // Merchant Tap2 ID
+  n: string;        // Merchant display name
+  amt: number;      // Amount in cents (integer)
+  cur: string;      // Currency code (ISO 4217, default "USD")
+  ts: number;       // Unix timestamp
+  nonce: string;    // Cryptographic nonce for replay protection
+}
+
+// Example:
+// {"v":"1.0","m":"merch_abc123","n":"Coffee Shop","amt":450,"cur":"USD","ts":1738752000,"nonce":"a1b2c3d4"}
+```
+
+**Security Notes:**
+- The `nonce` must be unique per payment session and verified by the backend
+- Timestamp should be validated within ±5 minutes to prevent replay attacks
+- Payload may optionally be signed by merchant private key for additional verification
 
 **Implementation:**
 
@@ -215,6 +284,56 @@ class NFCService {
 export default new NFCService();
 ```
 
+### iOS-Specific NFC Requirements
+
+iOS has unique requirements for NFC functionality that must be addressed:
+
+**Core NFC Framework:**
+- Requires iOS 13.0+
+- Uses `NFCReaderSession` API instead of Android-style tag discovery
+- Must present user-visible UI during scanning (Apple requirement)
+
+**Entitlements Required:**
+```xml
+<!-- Entitlements.plist -->
+<key>com.apple.developer.nfc.readersession.formats</key>
+<array>
+  <string>NDEF</string>
+</array>
+```
+
+**Key Limitations:**
+- NFC scanning only works while app is in foreground
+- Background NFC detection is not supported
+- User must explicitly tap "Start Scanning" - can't auto-start on app launch
+- Session timeout after 60 seconds of inactivity (Apple enforced)
+
+**iOS-Native Implementation Layer:**
+```typescript
+// ios/NFCReader.swift (bridged to React Native)
+import CoreNFC
+
+class NFCReader: NSObject, NFCNDEFReaderSessionDelegate {
+  func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
+    // Bridge to React Native via event emitter
+  }
+}
+```
+
+### Android-Specific NFC Requirements
+
+**Manifest Permissions:**
+```xml
+<!-- AndroidManifest.xml -->
+<uses-permission android:name="android.permission.NFC" />
+<uses-feature android:name="android.hardware.nfc" android:required="false" />
+```
+
+**Key Considerations:**
+- Can enable NFC in foreground without user prompt (after initial grant)
+- Supports broader range of tag technologies
+- Background tag detection possible with foreground dispatch
+
 ### 2.2 Payment Flow (NFC)
 
 ```
@@ -279,7 +398,10 @@ export function PaymentConfirmationScreen() {
       }
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Show error
+      // TODO: Show user-friendly error message based on error type
+      // - Network errors: "Connection failed. Please try again."
+      // - Insufficient funds: "Insufficient balance. Add funds to continue."
+      // - Card declined: "Payment declined. Try another payment method."
     } finally {
       setProcessing(false);
     }
@@ -315,6 +437,9 @@ export function PaymentConfirmationScreen() {
     </View>
   );
 }
+
+// StyleSheet omitted for brevity
+// const styles = StyleSheet.create({ ... });
 ```
 
 ### 2.3 Haptic & Visual Feedback
@@ -717,7 +842,9 @@ describe('Tap-to-Pay Flow', () => {
 | Phase 5: Funding Sources | 2 weeks | Card onboarding, payment method management |
 | Testing & Polish | 2 weeks | Unit tests, E2E tests, bug fixes |
 
-**Total: ~12 weeks**
+**Total: ~12 weeks for complete Tap-to-Pay feature**
+
+> **Note:** See [SPRINTS.md](SPRINTS.md#sprint-3) for the detailed task breakdown mapped to 3-week sprints. This document covers the full technical implementation, while SPRINTS.md divides work into sprint-sized deliverables.
 
 ## Dependencies
 
@@ -732,11 +859,11 @@ describe('Tap-to-Pay Flow', () => {
 
 ## Open Questions
 
-1. **Merchant NFC Format**: What is the exact NDEF payload format from merchant devices?
-2. **Payment Timeout**: Should payments auto-cancel after X seconds of inactivity?
-3. **Offline Mode**: Should any functionality work without network?
-4. **Receipt Delivery**: Email, SMS, or in-app only?
-5. **Multiple Cards**: Support for split payments across cards?
+1. **Payment Timeout**: Should payments auto-cancel after X seconds of inactivity? (Proposed: 30 seconds)
+2. **Offline Mode Scope**: Beyond payment queuing (Section 1.4), should merchant lookup work offline?
+3. **Receipt Delivery**: Email, SMS, or in-app only? (Proposed: In-app with optional email)
+4. **Multiple Cards**: Support for split payments across cards? (Proposed: Phase 2 feature)
+5. **Merchant Dispute Flow**: How should users dispute incorrect charges?
 
 ## Success Criteria
 
@@ -750,6 +877,15 @@ describe('Tap-to-Pay Flow', () => {
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Last Updated**: February 2026
+**Changes from v1.0**: Added NDEF payload specification, iOS/Android NFC requirements, network resilience strategy
 **Next Review**: After Phase 1 completion
+
+---
+
+**Related Documents:**
+- [PRD.md](PRD.md) - Product requirements
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture
+- [EPICS.md](EPICS.md) - User stories
+- [SPRINTS.md](SPRINTS.md) - Sprint planning and task breakdown
