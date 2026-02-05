@@ -1,26 +1,25 @@
 import { Router } from 'express';
 import { PaymentService } from '../../services/payment.service.js';
+import { merchantPaymentSchema, nfcInitiateSchema, qrPaymentSchema, validateBody } from '../../utils/validation.js';
 
 export const paymentsRouter = Router();
 const paymentService = new PaymentService();
 
 // POST /api/v1/payments/merchant
-paymentsRouter.post('/merchant', async (req, res) => {
+paymentsRouter.post('/merchant', validateBody(merchantPaymentSchema), async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { merchantId, amount, currency, paymentMethod } = req.body;
+    // User is attached by authentication middleware
+    const userId = req.user!.id;
+    const paymentData = req.body as MerchantPaymentInput;
 
     const payment = await paymentService.initiateMerchantPayment({
       userId,
-      merchantId,
-      amount,
-      currency: currency || 'USD',
-      paymentMethod: paymentMethod || 'default',
+      merchantId: paymentData.merchantId,
+      amount: paymentData.amount,
+      currency: paymentData.currency || 'USD',
+      paymentMethod: paymentData.paymentMethod || 'default',
+      paymentType: paymentData.paymentType || 'nfc',
+      nfcNonce: paymentData.nfcNonce,
     });
 
     res.status(201).json(payment);
@@ -45,19 +44,18 @@ paymentsRouter.get('/:id/status', async (req, res) => {
 });
 
 // POST /api/v1/payments/nfc/initiate
-paymentsRouter.post('/nfc/initiate', async (req, res) => {
+paymentsRouter.post('/nfc/initiate', validateBody(nfcInitiateSchema), async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
+    // User is attached by authentication middleware
+    const userId = req.user!.id;
+    const { merchantId, nonce } = req.body as NFCInitiateInput;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // TODO: Sprint 3 - Implement full NFC handshake logic with merchant verification
+    // For now, return a placeholder payment ID
+    const paymentId = `${Date.now()}-${nonce.slice(0, 8)}`;
 
-    const { merchantId, nonce } = req.body;
-
-    // TODO: Implement NFC handshake logic
     res.json({
-      paymentId: crypto.randomUUID(),
+      paymentId,
       status: 'initiated',
       message: 'NFC payment initiated'
     });
@@ -69,19 +67,18 @@ paymentsRouter.post('/nfc/initiate', async (req, res) => {
 });
 
 // POST /api/v1/payments/qr/process
-paymentsRouter.post('/qr/process', async (req, res) => {
+paymentsRouter.post('/qr/process', validateBody(qrPaymentSchema), async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
+    // User is attached by authentication middleware
+    const userId = req.user!.id;
+    const { qrData, amount, tip } = req.body as QRPaymentInput;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // TODO: Sprint 3 - Implement QR code payment logic
+    // Parse QR code and process payment
+    const paymentId = `qr-${Date.now()}`;
 
-    const { qrData, amount, tip } = req.body;
-
-    // TODO: Implement QR code payment logic
     res.json({
-      paymentId: crypto.randomUUID(),
+      paymentId,
       status: 'pending',
       message: 'QR payment processed'
     });

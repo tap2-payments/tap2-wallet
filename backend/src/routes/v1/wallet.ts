@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { WalletService } from '../../services/wallet.service.js';
+import { transactionListSchema, validateQuery } from '../../utils/validation.js';
 
 export const walletRouter = Router();
 const walletService = new WalletService();
@@ -7,12 +8,8 @@ const walletService = new WalletService();
 // GET /api/v1/wallet/balance
 walletRouter.get('/balance', async (req, res) => {
   try {
-    // TODO: Add authentication middleware
-    const userId = req.headers['x-user-id'] as string;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    // User is attached by authentication middleware
+    const userId = req.user!.id;
 
     const balance = await walletService.getBalance(userId);
     res.json({ balance });
@@ -24,15 +21,20 @@ walletRouter.get('/balance', async (req, res) => {
 });
 
 // GET /api/v1/wallet/transactions
-walletRouter.get('/transactions', async (req, res) => {
+walletRouter.get('/transactions', validateQuery(transactionListSchema), async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.user!.id;
+    const { limit, offset, startDate, endDate, type } = req.query as any;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const transactions = await walletService.getTransactions(
+      userId,
+      Number(limit),
+      Number(offset),
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+      type as string | undefined
+    );
 
-    const transactions = await walletService.getTransactions(userId);
     res.json({ transactions });
   } catch (error) {
     res.status(500).json({
@@ -40,3 +42,4 @@ walletRouter.get('/transactions', async (req, res) => {
     });
   }
 });
+

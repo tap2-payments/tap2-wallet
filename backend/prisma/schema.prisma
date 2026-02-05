@@ -21,8 +21,11 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  wallet        Wallet?
+  wallet         Wallet?
   paymentMethods PaymentMethod[]
+  sentTransfers  P2PTransfer[]    @relation("SentTransfers")
+  receivedTransfers P2PTransfer[] @relation("ReceivedTransfers")
+  rewards        Reward[]
 
   @@map("users")
 }
@@ -36,7 +39,7 @@ model Wallet {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
   @@map("wallets")
@@ -44,16 +47,19 @@ model Wallet {
 
 // Transaction model - based on ARCHITECTURE.md line 169
 model Transaction {
-  id          String   @id @default(uuid()) @db.Uuid
-  walletId    String   @map("wallet_id")
-  type        String   // 'payment', 'p2p', 'fund', 'withdraw'
-  amount      Decimal  @db.Decimal(10, 2)
-  status      String   @default("pending") // 'pending', 'completed', 'failed'
-  referenceId String?  @map("reference_id")
+  id          String           @id @default(uuid()) @db.Uuid
+  walletId    String           @map("wallet_id")
+  type        String           // 'payment', 'p2p', 'fund', 'withdraw'
+  amount      Decimal          @db.Decimal(10, 2)
+  status      String           @default("pending") // 'pending', 'completed', 'failed'
+  referenceId String?          @map("reference_id")
   metadata    Json?
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
 
-  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet           Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  merchantPayment  MerchantPayment?
+  p2pTransfer      P2PTransfer?
+  rewards          Reward[]
 
   @@map("transactions")
 }
@@ -72,35 +78,44 @@ model PaymentMethod {
   isActive     Boolean   @default(true) @map("is_active")
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantPayments  MerchantPayment[]
 
   @@map("payment_methods")
 }
 
 // Merchant model - based on PLANS-tap-to-pay.md line 77
 model Merchant {
-  id           String   @id @default(uuid()) @db.Uuid
-  businessName String   @map("business_name")
-  tap2Id       String   @unique @map("tap2_id")
-  businessType String?  @map("business_type")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String           @id @default(uuid()) @db.Uuid
+  businessName String           @map("business_name")
+  tap2Id       String           @unique @map("tap2_id")
+  businessType String?          @map("business_type")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  payments     MerchantPayment[]
+  rewards      Reward[]
 
   @@map("merchants")
 }
 
 // MerchantPayments model - based on PLANS-tap-to-pay.md line 102
 model MerchantPayment {
-  id             String    @id @default(uuid()) @db.Uuid
-  transactionId  String    @unique @map("transaction_id")
-  merchantId     String    @map("merchant_id")
-  paymentMethodId String?  @map("payment_method_id")
-  paymentType    String    @map("payment_type") // 'nfc', 'qr'
-  qrCodeId       String?   @map("qr_code_id")
-  nfcNonce       String?   @map("nfc_nonce")
-  tipAmount      Decimal   @default(0) @map("tip_amount") @db.Decimal(10, 2)
-  completedAt    DateTime? @map("completed_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
+  id             String        @id @default(uuid()) @db.Uuid
+  transactionId  String        @unique @map("transaction_id")
+  merchantId     String        @map("merchant_id")
+  paymentMethodId String?       @map("payment_method_id")
+  paymentType    String        @map("payment_type") // 'nfc', 'qr'
+  qrCodeId       String?       @map("qr_code_id")
+  nfcNonce       String?       @map("nfc_nonce")
+  tipAmount      Decimal       @default(0) @map("tip_amount") @db.Decimal(10, 2)
+  completedAt    DateTime?     @map("completed_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  // Foreign key relations
+  transaction    Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  merchant       Merchant      @relation(fields: [merchantId], references: [id])
+  paymentMethod  PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
 
   @@map("merchant_payments")
 }
@@ -115,20 +130,30 @@ model Reward {
   expiresAt     DateTime? @map("expires_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
+  // Foreign key relations
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant      Merchant?    @relation(fields: [merchantId], references: [id])
+  transaction   Transaction  @relation(fields: [transactionId], references: [id])
+
   @@map("rewards")
 }
 
 // P2PTransfer model - for peer-to-peer payments
 model P2PTransfer {
-  id              String   @id @default(uuid()) @db.Uuid
-  transactionId   String   @unique @map("transaction_id")
-  senderId        String   @map("sender_id")
-  recipientId     String   @map("recipient_id")
-  amount          Decimal  @db.Decimal(10, 2)
-  status          String   @default("pending") // 'pending', 'completed', 'failed', 'cancelled'
-  expiresAt       DateTime @map("expires_at")
-  completedAt     DateTime? @map("completed_at")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id              String        @id @default(uuid()) @db.Uuid
+  transactionId   String        @unique @map("transaction_id")
+  senderId        String        @map("sender_id")
+  recipientId     String        @map("recipient_id")
+  amount          Decimal       @db.Decimal(10, 2)
+  status          String        @default("pending") // 'pending', 'completed', 'failed', 'cancelled'
+  expiresAt       DateTime      @map("expires_at")
+  completedAt     DateTime?     @map("completed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Foreign key relations
+  transaction     Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  sender          User          @relation("SentTransfers", fields: [senderId], references: [id])
+  recipient       User          @relation("ReceivedTransfers", fields: [recipientId], references: [id])
 
   @@map("p2p_transfers")
 }

@@ -14,8 +14,8 @@ logs/
 *.log
 npm-debug.log*
 
-# Prisma
-prisma/migrations/*/migration.sql
+# Prisma (keep migration SQL in git, ignore lock file)
+prisma/migration_lock.toml
 
 # IDE
 .vscode/

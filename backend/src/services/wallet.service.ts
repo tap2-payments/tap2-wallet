@@ -16,16 +16,38 @@ export class WalletService {
     };
   }
 
-  async getTransactions(userId: string, limit = 20, offset = 0) {
-    const wallet = await prisma.wallet.findUnique({
+  async getTransactions(
+    userId: string,
+    limit = 20,
+    offset = 0,
+    startDate?: Date,
+    endDate?: Date,
+    type?: string
+  ) {
+    const where: any = { walletId: userId };
+
+    // Add filters if provided
+    if (type) {
+      where.type = type;
+    }
+    if (startDate) {
+      where.createdAt = { gte: startDate };
+    }
+    if (endDate) {
+      where.createdAt = { ...where.createdAt, lte: endDate };
+    }
+
+    const wallet = await prisma.wallet.findFirst({
       where: { userId },
-      include: {
-        transactions: {
-          orderBy: { createdAt: 'desc' },
-          take: limit,
-          skip: offset,
-        },
+      select: {
+        id: true,
+      transactions: {
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
       },
+    },
     });
 
     if (!wallet) {
@@ -38,6 +60,7 @@ export class WalletService {
       amount: tx.amount.toNumber(),
       status: tx.status,
       createdAt: tx.createdAt,
+      metadata: tx.metadata,
     }));
   }
 
