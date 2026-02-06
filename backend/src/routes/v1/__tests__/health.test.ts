@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createApp } from '../../app.js';
 
 describe('Health Check API', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Express app type from supertest
   let app: any;
 
   beforeAll(() => {

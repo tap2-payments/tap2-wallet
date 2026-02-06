@@ -3,6 +3,7 @@ import { WalletService } from '../wallet.service.js';
 import { prisma } from '../../config/database.js';
 
 // Mock Prisma client
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Vitest mock
 vi.mock('../../config/database.js', () => ({
   prisma: {
     wallet: {
@@ -30,6 +31,7 @@ describe('WalletService', () => {
         currency: 'USD',
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.wallet.findUnique).mockResolvedValue(mockWallet as any);
 
       const result = await walletService.getBalance('user-123');
@@ -76,6 +78,7 @@ describe('WalletService', () => {
     };
 
     it('should return transactions for valid wallet', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.wallet.findFirst).mockResolvedValue(mockWallet as any);
 
       const result = await walletService.getTransactions('user-123');
@@ -92,6 +95,7 @@ describe('WalletService', () => {
     });
 
     it('should filter transactions by type', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.wallet.findFirst).mockResolvedValue(mockWallet as any);
 
       const result = await walletService.getTransactions('user-123', 20, 0, undefined, undefined, 'PAYMENT');
@@ -114,6 +118,7 @@ describe('WalletService', () => {
       const startDate = new Date('2024-01-01');
       const endDate = new Date('2024-01-31');
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.wallet.findFirst).mockResolvedValue(mockWallet as any);
 
       await walletService.getTransactions('user-123', 20, 0, startDate, endDate);
@@ -154,6 +159,7 @@ describe('WalletService', () => {
         updatedAt: new Date(),
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.wallet.create).mockResolvedValue(mockWallet as any);
 
       const result = await walletService.createWallet('user-123');

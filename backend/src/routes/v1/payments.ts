@@ -1,16 +1,17 @@
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { Router, type Response, type NextFunction } from 'express';
 import { PaymentService } from '../../services/payment.service.js';
 import { merchantPaymentSchema, nfcInitiateSchema, qrPaymentSchema, validateBody } from '../../utils/validation.js';
 import type { MerchantPaymentInput, NFCInitiateInput, QRPaymentInput } from '../../utils/validation.js';
+import type { AuthenticatedRequest } from '../../middleware/auth.js';
 
 export const paymentsRouter = Router();
 const paymentService = new PaymentService();
 
 // POST /api/v1/payments/merchant
-paymentsRouter.post('/merchant', validateBody(merchantPaymentSchema), async (req: Request, res: Response, next: NextFunction) => {
+paymentsRouter.post('/merchant', validateBody(merchantPaymentSchema), async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     // User is attached by authentication middleware
-    const userId = req.user!.id;
+    const userId = req.user.id;
     const paymentData = req.body as MerchantPaymentInput;
 
     const payment = await paymentService.initiateMerchantPayment({

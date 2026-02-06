@@ -5,6 +5,7 @@ import { prisma } from '../../config/database.js';
 import type { MerchantPaymentInput } from '../payment.service.js';
 
 // Mock Prisma client
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Vitest mock
 vi.mock('../../config/database.js', () => ({
   prisma: {
     $transaction: vi.fn(),
@@ -60,6 +61,7 @@ describe('PaymentService', () => {
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
         // Mock the transaction callback
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction mock
         const tx = {
           wallet: {
             findUnique: vi.fn()
@@ -100,6 +102,7 @@ describe('PaymentService', () => {
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction mock
         const tx = {
           wallet: {
             findUnique: vi.fn().mockResolvedValue(lowBalanceWallet),
@@ -126,6 +129,7 @@ describe('PaymentService', () => {
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction mock
         const tx = {
           wallet: {
             findUnique: vi.fn().mockResolvedValue(null),
@@ -153,6 +157,7 @@ describe('PaymentService', () => {
         },
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma mock
       vi.mocked(prisma.transaction.findUnique).mockResolvedValue(mockTransaction as any);
 
       const result = await paymentService.getPaymentStatus('txn-123');
@@ -181,6 +186,7 @@ describe('PaymentService', () => {
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction mock
         const tx = {
           transaction: {
             findUnique: vi.fn().mockResolvedValue(mockTransaction),
@@ -214,6 +220,7 @@ describe('PaymentService', () => {
       };
 
       vi.mocked(prisma.$transaction).mockImplementation(async (callback) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma transaction mock
         const tx = {
           transaction: {
             findUnique: vi.fn().mockResolvedValue(mockTransaction),

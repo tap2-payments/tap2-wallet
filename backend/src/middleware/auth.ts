@@ -1,15 +1,24 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import { UnauthorizedError } from '../utils/errors.js';
 
-// Extend Express Request type to include user
+// User object attached to request by authentication middleware
+export interface RequestUser {
+  id: string;
+  email: string;
+  phone: string;
+}
+
+// AuthenticatedRequest extends Express Request with required user property
+// Use this in route handlers that run after the authenticate middleware
+export interface AuthenticatedRequest extends Omit<Request, 'user'> {
+  user: RequestUser;
+}
+
+// Extend Express Request type to include user (optional)
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        phone: string;
-      };
+      user?: RequestUser;
     }
   }
 }
