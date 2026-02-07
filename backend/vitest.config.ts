@@ -5,8 +5,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // Vitest 4 workaround: Add alias for database module
-      '@/config/database': path.resolve(__dirname, './src/config/database'),
     },
   },
   test: {
