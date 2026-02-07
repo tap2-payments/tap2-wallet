@@ -2,18 +2,19 @@ import { describe, it, expect, beforeAll, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express, { type Express } from 'express';
 
-// Mock Prisma client BEFORE importing health router
-const queryRawMock = vi.fn();
-// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Vitest mock
-vi.mock('../../config/database.js', () => ({
+// Vitest 4: Use alias for reliable mocking since relative paths with .js are broken
+vi.mock('@/config/database', () => ({
   prisma: {
-    $queryRaw: queryRawMock,
+    $queryRaw: vi.fn(),
   },
 }));
 
 // Import after mock is defined
-import { prisma } from '../../config/database.js';
+import { prisma } from '@/config/database';
 import { healthRouter } from '../health.js';
+
+// Get the mock function for easier access
+const queryRawMock = prisma.$queryRaw as ReturnType<typeof vi.fn>;
 
 /**
  * Creates a test app with the health router mounted
