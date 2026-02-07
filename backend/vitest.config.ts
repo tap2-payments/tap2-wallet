@@ -11,11 +11,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Vitest 4: Use 'threads' pool for better compatibility (changed default in v4)
+    // Explicitly set pool for clarity (matches default behavior)
     pool: 'threads',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      // Vitest 4: Explicitly include source files in coverage (default changed in v4)
       include: ['src/**/*.{js,ts}'],
       exclude: [
         'node_modules/',

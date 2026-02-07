@@ -2,18 +2,18 @@ import { describe, it, expect, beforeAll, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express, { type Express } from 'express';
 
-// Vitest 4: Use alias for reliable mocking since relative paths with .js are broken
+// Use path alias for consistent imports across test files
 vi.mock('@/config/database', () => ({
   prisma: {
     $queryRaw: vi.fn(),
   },
 }));
 
-// Import after mock is defined
+// Import AFTER mock definition - vi.mock() is hoisted and must be declared before imports
 import { prisma } from '@/config/database';
 import { healthRouter } from '../health.js';
 
-// Get the mock function for easier access
+// Extract mock function for type-safe test assertions
 const queryRawMock = prisma.$queryRaw as ReturnType<typeof vi.fn>;
 
 /**
