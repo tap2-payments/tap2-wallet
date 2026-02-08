@@ -2,11 +2,11 @@
 
 ## Current Sprint
 
-**Sprint**: Foundation Setup
+**Sprint**: Authentication & Identity
 **Dates**: February 2026
-**Status**: Sprint 0 Complete - Ready for Sprint 1
+**Status**: Sprint 0 Complete, Sprint 1 In Progress
 
-### Completed ✅
+### Sprint 0: Foundation ✅ Complete
 
 **Planning & Requirements:**
 
@@ -52,16 +52,25 @@
 - [x] Initial API routes (health, wallet, payments)
 - [x] Database migrations
 
-### In Progress 🚧
+### Sprint 1: Authentication & Identity 🚧 In Progress
 
-- [ ] PR #29: Prettier and CI/CD workflows (pending merge)
+**Completed:**
 
-### Upcoming 📋
+- [x] Auth0 integration (react-native-auth0 SDK)
+- [x] AuthContext for state management
+- [x] Login and registration screens
+- [x] Secure token storage (expo-secure-store)
+- [x] Biometric authentication service (Face ID/Touch ID)
+- [x] PIN setup and verification screens
+- [x] KYC verification screen (placeholder for Persona SDK)
 
-- [ ] Sprint 1: Authentication & Identity
-- [ ] Auth0 integration
-- [ ] Persona KYC integration
-- [ ] Biometric authentication
+**Pending:**
+
+- [ ] Merge PR #31: Authentication & Identity implementation
+- [ ] Integrate Persona SDK for KYC verification
+- [ ] Test on physical device (biometrics require real hardware)
+- [ ] Add loading screen for auth initialization
+- [ ] Implement forgot password flow
 
 ## Implementation Plans
 
@@ -75,15 +84,15 @@
 
 ## Next Tasks
 
-1. **Merge PR #29** - Prettier and CI/CD workflows
-2. **Begin Sprint 1** - Authentication & Identity
-   - Integrate Auth0 for user authentication
-   - Implement secure token storage (Keychain/Keystore)
-   - Build registration and login screens
-   - Integrate Persona KYC SDK
-   - Implement biometric authentication
+1. **Merge PR #31** - Authentication & Identity implementation
+2. **Begin Sprint 2** - Wallet Core
+   - Design and implement wallet database schema
+   - Build wallet backend API (balance, fund, withdraw)
+   - Integrate Plaid for bank account linking
+   - Integrate Stripe for card processing
+   - Build wallet home screen with balance display
 
-See [SPRINTS.md](SPRINTS.md) for Sprint 1 details.
+See [SPRINTS.md](SPRINTS.md) for Sprint 2 details.
 
 ## Blockers
 
@@ -93,10 +102,13 @@ None currently.
 
 **2026-02-08:**
 
+- 🔄 PR #31 open: Authentication & Identity implementation (pending merge)
+  - Auth0 integration with login/register/logout
+  - Biometric authentication (Face ID/Touch ID)
+  - PIN setup and verification screens
+  - KYC verification placeholder screen
+- ✅ PR #29 merged: Prettier and CI/CD workflows
 - ✅ Deployed marketing website to https://tap2-wallet-marketing.pages.dev
-- ✅ Set up Prettier, pre-commit hooks (husky, lint-staged)
-- ✅ Created GitHub Actions CI/CD workflows
-- 🔄 PR #29 open: Prettier and CI/CD workflows (pending merge)
 
 **2026-02-05:**
 
