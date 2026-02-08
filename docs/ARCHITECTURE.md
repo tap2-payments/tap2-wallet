@@ -58,9 +58,11 @@
 | Language | TypeScript | Type safety |
 | Database | Cloudflare D1 | Edge-native SQLite, zero cold starts |
 | ORM | Drizzle ORM | Type-safe, lightweight, D1-optimized |
-| Auth | Auth0 | OAuth2, social logins |
+| Auth | Custom (Cloudflare) | JWT, Argon2, social OAuth, edge-native |
 | KYC | Persona | Identity verification |
 | Payments | Stripe | Card processing, payouts |
+| Email | Resend | Transactional emails |
+| SMS | Twilio | Phone verification |
 | Queue | Cloudflare Queues | Async job processing |
 | Cache | Cloudflare KV | Fast edge reads, rate limiting |
 
@@ -155,14 +157,43 @@ CREATE TABLE users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   phone TEXT UNIQUE NOT NULL,
-  auth0_id TEXT UNIQUE,
+  password_hash TEXT,  -- Argon2id hash for password auth
+  social_provider TEXT,  -- 'apple', 'google', or NULL for password
+  social_id TEXT,  -- Provider's user ID
   kyc_verified INTEGER DEFAULT 0,
   kyc_verified_at TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_auth0_id ON users(auth0_id);
+CREATE INDEX idx_users_social ON users(social_provider, social_id);
+```
+
+**Sessions Table (KV-backed, cached in D1)**
+```sql
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  device_id TEXT NOT NULL,
+  refresh_token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_device_id ON sessions(device_id);
+```
+
+**MFA Secrets Table**
+```sql
+CREATE TABLE mfa_secrets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+  secret TEXT NOT NULL,  -- TOTP secret (encrypted)
+  backup_codes TEXT,  -- JSON array of hashed backup codes
+  verified INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+CREATE INDEX idx_mfa_secrets_user_id ON mfa_secrets(user_id);
 ```
 
 **Wallets Table**
@@ -220,11 +251,31 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   phone: text('phone').notNull().unique(),
-  auth0Id: text('auth0_id').unique(),
+  passwordHash: text('password_hash'),  // Argon2id for password auth
+  socialProvider: text('social_provider'),  // 'apple', 'google', or NULL
+  socialId: text('social_id'),  // Provider's user ID
   kycVerified: integer('kyc_verified', { mode: 'boolean' }).default(false),
   kycVerifiedAt: text('kyc_verified_at'),
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
   updatedAt: text('updated_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
+})
+
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  deviceId: text('device_id').notNull(),
+  refreshTokenHash: text('refresh_token_hash').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
+})
+
+export const mfaSecrets = sqliteTable('mfa_secrets', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique().references(() => users.id),
+  secret: text('secret').notNull(),  // TOTP secret (encrypted at rest)
+  backupCodes: text('backup_codes'),  // JSON array of hashed codes
+  verified: integer('verified', { mode: 'boolean' }).default(false),
+  createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
 })
 
 export const wallets = sqliteTable('wallets', {

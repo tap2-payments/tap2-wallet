@@ -40,7 +40,7 @@
 | Epic 2: P2P Payments | TBD | Not Started |
 | Epic 3: Rewards | TBD | Not Started |
 | Epic 4: Wallet Management | TBD | Not Started |
-| Epic 5: Identity & Security | TBD | Not Started |
+| Epic 5: Identity & Security | [PLANS-custom-auth.md](PLANS-custom-auth.md) | ✅ Complete |
 
 ## Next Tasks
 
