@@ -12,8 +12,7 @@
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
     "types": ["@cloudflare/workers-types"],
-    "jsx": "react",
-    "jsxImportSource": "react",
+    "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"]
     }

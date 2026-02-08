@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+.expo
+expo-shared-assets
+
+# Build output
+dist
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# iOS
+Pods
+*.pbxuser
+*.pem
+*.xcuserstate
+
+# Android
+build
+.gradle
+local.properties

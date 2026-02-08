@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core'
+import { relations } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 
 // Enums for type-safe status and type fields
@@ -22,6 +23,11 @@ export const users = sqliteTable(
     email: text('email').notNull().unique(),
     phone: text('phone').notNull().unique(),
     auth0Id: text('auth0_id').unique(),
+    passwordHash: text('password_hash'), // PBKDF2 hash (base64)
+    passwordSalt: text('password_salt'), // Salt for PBKDF2 (base64)
+    passwordIterations: integer('password_iterations').default(100000).notNull(),
+    pinHash: text('pin_hash'), // Spending PIN hash (PBKDF2, base64)
+    pinSalt: text('pin_salt'), // Salt for PIN (base64)
     kycVerified: integer('kyc_verified', { mode: 'boolean' }).default(false).notNull(),
     kycVerifiedAt: integer('kyc_verified_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
@@ -124,6 +130,7 @@ export const merchantPayments = sqliteTable(
     nfcNonce: text('nfc_nonce'),
     tipAmount: integer('tip_amount').default(0).notNull(), // Stored as cents
     completedAt: integer('completed_at', { mode: 'timestamp' }),
+    refundedAt: integer('refunded_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`).notNull(),
   },
   (table) => ({
@@ -173,6 +180,99 @@ export const p2pTransfers = sqliteTable(
     recipientIdCreatedAtIdx: index('p2p_transfers_recipient_created_idx').on(table.recipientId, table.createdAt),
   })
 )
+
+// Drizzle relations for eager loading
+export const usersRelations = relations(users, ({ many }) => ({
+  wallets: many(wallets),
+  paymentMethods: many(paymentMethods),
+  rewards: many(rewards),
+  sentTransfers: many(p2pTransfers, { relationName: 'sender' }),
+  receivedTransfers: many(p2pTransfers, { relationName: 'recipient' }),
+}))
+
+export const walletsRelations = relations(wallets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [wallets.userId],
+    references: [users.id],
+  }),
+  transactions: many(transactions),
+}))
+
+export const transactionsRelations = relations(transactions, ({ one, many }) => ({
+  wallet: one(wallets, {
+    fields: [transactions.walletId],
+    references: [wallets.id],
+  }),
+  merchantPayment: one(merchantPayments, {
+    fields: [transactions.id],
+    references: [merchantPayments.transactionId],
+  }),
+  p2pTransfer: one(p2pTransfers, {
+    fields: [transactions.id],
+    references: [p2pTransfers.transactionId],
+  }),
+  rewards: many(rewards),
+}))
+
+export const merchantsRelations = relations(merchants, ({ many }) => ({
+  merchantPayments: many(merchantPayments),
+  rewards: many(rewards),
+}))
+
+export const merchantPaymentsRelations = relations(merchantPayments, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [merchantPayments.transactionId],
+    references: [transactions.id],
+  }),
+  merchant: one(merchants, {
+    fields: [merchantPayments.merchantId],
+    references: [merchants.id],
+  }),
+  paymentMethod: one(paymentMethods, {
+    fields: [merchantPayments.paymentMethodId],
+    references: [paymentMethods.id],
+  }),
+}))
+
+export const rewardsRelations = relations(rewards, ({ one }) => ({
+  user: one(users, {
+    fields: [rewards.userId],
+    references: [users.id],
+  }),
+  merchant: one(merchants, {
+    fields: [rewards.merchantId],
+    references: [merchants.id],
+  }),
+  transaction: one(transactions, {
+    fields: [rewards.transactionId],
+    references: [transactions.id],
+  }),
+}))
+
+export const p2pTransfersRelations = relations(p2pTransfers, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [p2pTransfers.transactionId],
+    references: [transactions.id],
+  }),
+  sender: one(users, {
+    fields: [p2pTransfers.senderId],
+    references: [users.id],
+    relationName: 'sender',
+  }),
+  recipient: one(users, {
+    fields: [p2pTransfers.recipientId],
+    references: [users.id],
+    relationName: 'recipient',
+  }),
+}))
+
+export const paymentMethodsRelations = relations(paymentMethods, ({ one, many }) => ({
+  user: one(users, {
+    fields: [paymentMethods.userId],
+    references: [users.id],
+  }),
+  merchantPayments: many(merchantPayments),
+}))
 
 // Type exports for relations
 export type User = typeof users.$inferSelect

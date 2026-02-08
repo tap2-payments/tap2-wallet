@@ -1,0 +1,42 @@
+name: Marketing CI
+
+on:
+  pull_request:
+    paths:
+      - 'marketing/**'
+      - '.github/workflows/marketing-ci.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'marketing/**'
+      - '.github/workflows/marketing-ci.yml'
+
+defaults:
+  run:
+    working-directory: marketing
+
+jobs:
+  ci:
+    name: Build and Type Check Marketing Site
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: marketing/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

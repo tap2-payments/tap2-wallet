@@ -16,15 +16,62 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tap2.wallet"
+      "bundleIdentifier": "com.tap2.wallet",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for payments and merchant discovery.",
+        "NSFaceIDUsageDescription": "This app uses Face ID for secure authentication when accessing your wallet.",
+        "NSContactsUsageDescription": "This app needs access to contacts to send money to friends and family.",
+        "NFCReaderSessionDescription": "This app uses NFC to make tap-to-pay payments at participating merchants."
+      },
+      "capabilities": [
+        {
+          "capability": "NFC",
+          "profiles": [
+            "NDEF"
+          ]
+        }
+      ]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.tap2.wallet"
+      "package": "com.tap2.wallet",
+      "permissions": [
+        "NFC",
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "READ_CONTACTS",
+        "WRITE_CONTACTS",
+        "POST_NOTIFICATIONS",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to access your Face ID biometric data."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID for secure authentication."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff",
+          "sounds": ["./assets/notification.wav"]
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },
@@ -32,6 +79,10 @@
       "eas": {
         "projectId": "tap2-wallet"
       }
+    },
+    "scheme": "tap2wallet",
+    "deepLinking": {
+      "enabled": true
     }
   }
 }
