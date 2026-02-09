@@ -15,6 +15,8 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-non-null-assertion': 'warn',
+    // Deprecated rule - turn off
+    '@typescript-eslint/ban-types': 'off',
   },
   ignorePatterns: ['dist', 'node_modules', '*.js'],
 };

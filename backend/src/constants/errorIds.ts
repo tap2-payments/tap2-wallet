@@ -40,4 +40,4 @@ export const ErrorIds = {
   UNKNOWN_ERROR: 'ERR_INT_999',
 } as const;
 
-export type ErrorId = typeof ErrorIds[keyof typeof ErrorIds];
+export type ErrorId = (typeof ErrorIds)[keyof typeof ErrorIds];

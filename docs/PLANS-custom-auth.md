@@ -91,38 +91,39 @@ CREATE TABLE mfa_secrets (
 
 ### Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/auth/register` | Email/password registration |
-| POST | `/v1/auth/login` | Email/password login |
-| POST | `/v1/auth/logout` | Invalidate session |
-| POST | `/v1/auth/refresh` | Refresh access token |
-| POST | `/v1/auth/verify-email` | Verify email ownership |
-| POST | `/v1/auth/forgot-password` | Initiate password reset |
-| POST | `/v1/auth/reset-password` | Complete password reset |
+| Method | Endpoint                   | Description                 |
+| ------ | -------------------------- | --------------------------- |
+| POST   | `/v1/auth/register`        | Email/password registration |
+| POST   | `/v1/auth/login`           | Email/password login        |
+| POST   | `/v1/auth/logout`          | Invalidate session          |
+| POST   | `/v1/auth/refresh`         | Refresh access token        |
+| POST   | `/v1/auth/verify-email`    | Verify email ownership      |
+| POST   | `/v1/auth/forgot-password` | Initiate password reset     |
+| POST   | `/v1/auth/reset-password`  | Complete password reset     |
 
 ### Social Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/auth/social/apple` | Apple Sign In callback |
-| POST | `/v1/auth/social/google` | Google Sign In callback |
-| POST | `/v1/auth/social/link` | Link social to existing account |
+| Method | Endpoint                 | Description                     |
+| ------ | ------------------------ | ------------------------------- |
+| POST   | `/v1/auth/social/apple`  | Apple Sign In callback          |
+| POST   | `/v1/auth/social/google` | Google Sign In callback         |
+| POST   | `/v1/auth/social/link`   | Link social to existing account |
 
 ### Multi-Factor Authentication
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/v1/auth/mfa/setup` | Initiate MFA setup |
-| POST | `/v1/auth/mfa/verify` | Verify and enable MFA |
-| POST | `/v1/auth/mfa/disable` | Disable MFA |
-| POST | `/v1/auth/mfa/verify-code` | Verify TOTP during login |
+| Method | Endpoint                   | Description              |
+| ------ | -------------------------- | ------------------------ |
+| POST   | `/v1/auth/mfa/setup`       | Initiate MFA setup       |
+| POST   | `/v1/auth/mfa/verify`      | Verify and enable MFA    |
+| POST   | `/v1/auth/mfa/disable`     | Disable MFA              |
+| POST   | `/v1/auth/mfa/verify-code` | Verify TOTP during login |
 
 ## Implementation Details
 
 ### 1. Password Hashing (Argon2id)
 
 **Why Argon2id?**
+
 - Memory-hard, resistant to GPU/ASIC attacks
 - Winner of Password Hashing Competition 2015
 - Recommended by OWASP for new implementations
@@ -131,20 +132,21 @@ CREATE TABLE mfa_secrets (
 
 ```typescript
 // Using @noble/hashes (pure JS, works in Workers)
-import { argon2id } from '@noble/hashes/argon2'
-import { sha256 } from '@noble/hashes/sha256'
+import { argon2id } from '@noble/hashes/argon2';
+import { sha256 } from '@noble/hashes/sha256';
 
 const hashPassword = async (password: string, salt: Uint8Array): Promise<string> => {
   return await argon2id(password, salt, {
-    t: 3,      // Time cost (iterations)
-    m: 65536,  // Memory cost in KiB (64 MB)
-    p: 4,      // Parallelism
+    t: 3, // Time cost (iterations)
+    m: 65536, // Memory cost in KiB (64 MB)
+    p: 4, // Parallelism
     dkLen: 32, // Output length
-  })
-}
+  });
+};
 ```
 
 **Parameters Rationale:**
+
 - `t: 3` - Balanced for edge compute (~100ms)
 - `m: 65536` - 64 MB (OWASP minimum)
 - `p: 4` - Parallelism for multi-core
@@ -153,44 +155,48 @@ const hashPassword = async (password: string, salt: Uint8Array): Promise<string>
 ### 2. JWT Token Management
 
 **Access Token (short-lived):**
+
 ```typescript
 interface AccessTokenPayload {
-  sub: string      // User ID
-  iat: number      // Issued at
-  exp: number      // Expiration (15 min)
-  iss: string      // Issuer (tap2.wallet)
-  aud: string      // Audience (api.tap2.wallet)
-  jti: string      // JWT ID (token identifier)
+  sub: string; // User ID
+  iat: number; // Issued at
+  exp: number; // Expiration (15 min)
+  iss: string; // Issuer (tap2.wallet)
+  aud: string; // Audience (api.tap2.wallet)
+  jti: string; // JWT ID (token identifier)
 }
 ```
 
 **Refresh Token (long-lived):**
+
 ```typescript
 interface RefreshTokenPayload {
-  sub: string      // User ID
-  jti: string      // Session ID
-  iat: number
-  exp: number      // Expiration (30 days)
-  device_id: string
+  sub: string; // User ID
+  jti: string; // Session ID
+  iat: number;
+  exp: number; // Expiration (30 days)
+  device_id: string;
 }
 ```
 
 **Signing (Workers Crypto API):**
+
 ```typescript
-import { SignJWT, jwtVerify } from 'jose'
+import { SignJWT, jwtVerify } from 'jose';
 
 const signAccessToken = async (payload: AccessTokenPayload, secret: string) => {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuedAt()
     .setExpirationTime('15m')
-    .sign(new TextEncoder().encode(secret))
-}
+    .sign(new TextEncoder().encode(secret));
+};
 ```
 
 ### 3. Session Management
 
 **KV Structure (for fast lookups):**
+
 ```
 session:{session_id}         -> { user_id, device_id, expires_at }
 session:user:{user_id}       -> [session_id1, session_id2, ...]
@@ -198,6 +204,7 @@ rate_limit:{ip}:{endpoint}  -> { count, reset_at }
 ```
 
 **Session Flow:**
+
 1. Login creates session in D1 + KV cache
 2. Access token used for API requests
 3. Refresh token validates against D1 + KV
@@ -206,45 +213,48 @@ rate_limit:{ip}:{endpoint}  -> { count, reset_at }
 ### 4. Social OAuth Integration
 
 **Apple Sign In:**
+
 ```typescript
 interface AppleTokenResponse {
-  access_token: string
-  token_type: string
-  expires_in: number
-  id_token: string  // JWT with email
-  refresh_token: string
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  id_token: string; // JWT with email
+  refresh_token: string;
 }
 
 // Verify Apple JWT
 const verifyAppleToken = async (idToken: string) => {
-  const payload = await jwtVerify(idToken, applePublicKey)
+  const payload = await jwtVerify(idToken, applePublicKey);
   return {
     email: payload.email,
-    sub: payload.sub,  // Apple user ID
-    emailVerified: payload.email_verified
-  }
-}
+    sub: payload.sub, // Apple user ID
+    emailVerified: payload.email_verified,
+  };
+};
 ```
 
 **Google Sign In:**
+
 ```typescript
 interface GoogleTokenResponse {
-  access_token: string
-  expires_in: number
-  id_token: string
-  refresh_token: string
+  access_token: string;
+  expires_in: number;
+  id_token: string;
+  refresh_token: string;
 }
 
 // Verify Google JWT
 const verifyGoogleToken = async (idToken: string) => {
-  const response = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + idToken)
-  return await response.json()
-}
+  const response = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + idToken);
+  return await response.json();
+};
 ```
 
 ### 5. MFA (TOTP)
 
 **Setup Flow:**
+
 1. Generate random secret (base32)
 2. Generate QR code (otpauth URI)
 3. User scans with authenticator app
@@ -252,8 +262,9 @@ const verifyGoogleToken = async (idToken: string) => {
 5. Store encrypted secret in D1
 
 **Verification:**
+
 ```typescript
-import { TOTP } from 'otpauth'
+import { TOTP } from 'otpauth';
 
 const verifyTOTP = (secret: string, token: string): boolean => {
   const totp = new TOTP({
@@ -261,61 +272,67 @@ const verifyTOTP = (secret: string, token: string): boolean => {
     digits: 6,
     period: 30,
     algorithm: 'SHA1',
-  })
-  return totp.validate({ token: token }) !== null
-}
+  });
+  return totp.validate({ token: token }) !== null;
+};
 ```
 
 ### 6. Rate Limiting
 
 **Strategy:**
+
 - Auth endpoints: 5 requests per minute per IP
 - Login endpoint: 3 attempts per 5 minutes per email
 - Password reset: 1 per hour per email
 
 **Implementation (KV):**
+
 ```typescript
 const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, window: number) => {
-  const now = Date.now()
-  const data = await kv.get(key, 'json') as { count: number; resetAt: number } | null
+  const now = Date.now();
+  const data = (await kv.get(key, 'json')) as { count: number; resetAt: number } | null;
 
   if (!data || now > data.resetAt) {
     await kv.put(key, JSON.stringify({ count: 1, resetAt: now + window * 1000 }), {
-      expirationTtl: window
-    })
-    return true
+      expirationTtl: window,
+    });
+    return true;
   }
 
   if (data.count >= limit) {
-    return false
+    return false;
   }
 
   await kv.put(key, JSON.stringify({ count: data.count + 1, resetAt: data.resetAt }), {
-    expirationTtl: Math.ceil((data.resetAt - now) / 1000)
-  })
-  return true
-}
+    expirationTtl: Math.ceil((data.resetAt - now) / 1000),
+  });
+  return true;
+};
 ```
 
 ## Security Considerations
 
 ### Password Requirements
+
 - Minimum 12 characters
 - Require 3 of: uppercase, lowercase, number, symbol
 - Check against common passwords (haveibeenpwned API)
 - Prevent password reuse (store hash history)
 
 ### Token Storage (Mobile)
+
 - Access token: Memory only
 - Refresh token: Encrypted storage (Keychain/Keystore)
 - Biometric unlock for sensitive operations
 
 ### Device Binding
+
 - Generate device fingerprint on first login
 - Require re-auth for new devices
 - Notify user of new device sign-ins
 
 ### Account Recovery
+
 - Email verification (time-limited code)
 - Backup MFA codes (one-time use)
 - Social auth as recovery method
@@ -323,6 +340,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ## Implementation Phases
 
 ### Phase 1: Foundation (Week 1)
+
 - [ ] D1 schema migrations (users, sessions, mfa_secrets)
 - [ ] Password hashing utility (Argon2id)
 - [ ] JWT sign/verify utilities with key versioning
@@ -330,6 +348,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 - [ ] KV rate limiting utility
 
 ### Phase 2: Password Auth (Week 1-2)
+
 - [ ] Registration endpoint
 - [ ] Login endpoint
 - [ ] Logout endpoint
@@ -337,24 +356,28 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 - [ ] Session management (D1 + KV)
 
 ### Phase 3: Social Auth (Week 2)
+
 - [ ] Apple Sign In integration
 - [ ] Google Sign In integration
 - [ ] Social account linking
 - [ ] Social auth to existing account merge
 
 ### Phase 4: MFA (Week 3)
+
 - [ ] TOTP setup endpoint
 - [ ] TOTP verification
 - [ ] Backup codes generation
 - [ ] MFA enforcement policies
 
 ### Phase 5: Security Features (Week 4)
+
 - [ ] Rate limiting (all endpoints)
 - [ ] Device management
 - [ ] Security audit logging
 - [ ] Device fingerprinting
 
 ### Phase 6: Mobile Integration (Week 4)
+
 - [ ] React Native auth context
 - [ ] Secure token storage (Keychain/Keystore)
 - [ ] Biometric auth integration
@@ -362,6 +385,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 - [ ] Error handling
 
 ### Phase 7: Email/SMS Integration (Week 5)
+
 - [ ] Resend email templates
 - [ ] Email verification flow
 - [ ] Password reset emails
@@ -371,6 +395,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ## Dependencies
 
 ### Backend (Workers)
+
 ```json
 {
   "@noble/hashes": "^1.5.0",
@@ -381,6 +406,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ```
 
 ### Mobile (React Native)
+
 ```json
 {
   "@react-native-keychain/polyfill-web": "^0.1.0",
@@ -393,18 +419,21 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ## Testing Strategy
 
 ### Unit Tests
+
 - Password hashing/verification
 - JWT generation/validation
 - TOTP code generation/verification
 - Rate limit logic
 
 ### Integration Tests
+
 - Full registration flow
 - Full login flow (password + social)
 - Token refresh flow
 - MFA setup/verification flow
 
 ### Security Tests
+
 - SQL injection attempts
 - Rate limit bypass attempts
 - Token manipulation
@@ -413,6 +442,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ## Monitoring
 
 ### Metrics to Track
+
 - Registration rate
 - Login success/failure rate
 - MFA adoption rate
@@ -421,6 +451,7 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 - Suspicious activity patterns
 
 ### Alerts
+
 - Brute force attack patterns
 - Unusual login locations
 - MFA bypass attempts
@@ -438,16 +469,19 @@ const checkRateLimit = async (kv: KVNamespace, key: string, limit: number, windo
 ## External Services
 
 ### Email Provider: Resend
+
 - **Why**: Modern API, excellent React support, generous free tier (3,000 emails/month)
 - **Use cases**: Email verification, password reset, security alerts
 - **Integration**: Workers fetch API, SDK available
 
 ### SMS Provider: Twilio
+
 - **Why**: Industry standard, reliable, comprehensive documentation
 - **Use cases**: Phone verification (signup), security alerts (suspicious activity)
 - **Integration**: Workers fetch API to Twilio REST API
 
 ### Environment Variables
+
 ```bash
 # Resend
 RESEND_API_KEY=re_*
@@ -465,6 +499,7 @@ TWILIO_PHONE_NUMBER=+1xxx
 **Strategy**: Maintain multiple active signing keys with version identifiers in JWT header.
 
 **How it works:**
+
 1. Keys stored in environment with version suffix (`JWT_SECRET_v1`, `JWT_SECRET_v2`)
 2. JWT header includes `kid` (Key ID) field: `{ "alg": "HS256", "kid": "v2" }`
 3. Verification tries all keys; signing uses latest
@@ -478,11 +513,11 @@ TWILIO_PHONE_NUMBER=+1xxx
 // JWT_SECRET_v1=<previous-secret> (verification only)
 
 const secrets = {
-  v2: env.JWT_SECRET_v2,  // Current (signing)
-  v1: env.JWT_SECRET_v1,  // Previous (verification only)
-}
+  v2: env.JWT_SECRET_v2, // Current (signing)
+  v1: env.JWT_SECRET_v1, // Previous (verification only)
+};
 
-const currentVersion = 'v2'
+const currentVersion = 'v2';
 
 // Sign with current key
 const signAccessToken = async (payload: AccessTokenPayload) => {
@@ -490,23 +525,24 @@ const signAccessToken = async (payload: AccessTokenPayload) => {
     .setProtectedHeader({ alg: 'HS256', kid: currentVersion, typ: 'JWT' })
     .setIssuedAt()
     .setExpirationTime('15m')
-    .sign(new TextEncoder().encode(secrets[currentVersion]))
-}
+    .sign(new TextEncoder().encode(secrets[currentVersion]));
+};
 
 // Verify with any key
 const verifyAccessToken = async (token: string) => {
-  const header = decodeProtectedHeader(token)
-  const key = secrets[header.kid as keyof typeof secrets]
+  const header = decodeProtectedHeader(token);
+  const key = secrets[header.kid as keyof typeof secrets];
 
   if (!key) {
-    throw new Error('Unknown key version')
+    throw new Error('Unknown key version');
   }
 
-  return await jwtVerify(token, new TextEncoder().encode(key))
-}
+  return await jwtVerify(token, new TextEncoder().encode(key));
+};
 ```
 
 **Rotation Process:**
+
 1. Add new secret to environment (`JWT_SECRET_v3`)
 2. Deploy with new secret as signing key
 3. Keep old secret in env for verification (30 days)
@@ -514,6 +550,7 @@ const verifyAccessToken = async (token: string) => {
 5. Repeat annually or if compromise suspected
 
 **Benefits:**
+
 - Zero downtime during rotation
 - Tokens remain valid until natural expiration
 - Quick response to security incidents
