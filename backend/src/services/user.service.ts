@@ -17,10 +17,10 @@ export class UserService {
     });
   }
 
-  async findByAuth0Id(db: D1Database, auth0Id: string) {
+  async findById(db: D1Database, userId: string) {
     const dbClient = initDB(db);
     return await dbClient.query.users.findFirst({
-      where: eq(users.auth0Id, auth0Id),
+      where: eq(users.id, userId),
       with: {
         wallet: true,
       },
@@ -29,7 +29,7 @@ export class UserService {
 
   async createUser(
     db: D1Database,
-    data: { email: string; phone: string; auth0Id?: string }
+    data: { email: string; phone: string; passwordHash?: string; socialProvider?: string; socialId?: string }
   ): Promise<User> {
     const dbClient = initDB(db);
 
@@ -38,13 +38,15 @@ export class UserService {
       id: crypto.randomUUID(),
       email: data.email,
       phone: data.phone,
-      auth0Id: data.auth0Id,
+      passwordHash: data.passwordHash,
+      socialProvider: data.socialProvider,
+      socialId: data.socialId,
       kycVerified: false,
       createdAt: now,
       updatedAt: now,
     };
 
-    const result = await dbClient.insert(users).values(newUser).returning();
+    await dbClient.insert(users).values(newUser);
 
     // Create wallet for new user
     const newWallet: Wallet = {
@@ -58,7 +60,7 @@ export class UserService {
 
     await dbClient.insert(wallets).values(newWallet);
 
-    return result[0]!;
+    return newUser as User;
   }
 
   async updateKYC(db: D1Database, userId: string, verified: boolean) {
@@ -69,7 +71,7 @@ export class UserService {
       .update(users)
       .set({
         kycVerified: verified,
-        kycVerifiedAt: verified ? now : null,
+        kycVerifiedAt: verified ? now : undefined,
         updatedAt: now,
       })
       .where(eq(users.id, userId));

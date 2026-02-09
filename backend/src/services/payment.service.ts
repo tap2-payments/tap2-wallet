@@ -178,13 +178,14 @@ export class PaymentService {
 
     // Refund the amount back to wallet
     if (transaction.wallet) {
+      const wallet = transaction.wallet as { balance: number; id: string; currency: string };
       await dbClient
         .update(wallets)
         .set({
-          balance: transaction.wallet.balance + transaction.amount,
+          balance: wallet.balance + transaction.amount,
           updatedAt: new Date(),
         })
-        .where(eq(wallets.id, transaction.wallet.id));
+        .where(eq(wallets.id, wallet.id));
     }
 
     // Update transaction status

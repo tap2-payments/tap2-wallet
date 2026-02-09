@@ -14,14 +14,16 @@ export type PaymentType = (typeof paymentTypeEnum)[number];
 export const p2pTransferStatusEnum = ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'] as const;
 export type P2PTransferStatus = (typeof p2pTransferStatusEnum)[number];
 
-// User model
+// User model - Custom Auth
 export const users = sqliteTable(
   'users',
   {
     id: text('id').primaryKey(),
     email: text('email').notNull().unique(),
     phone: text('phone').notNull().unique(),
-    auth0Id: text('auth0_id').unique(),
+    passwordHash: text('password_hash'), // Argon2id hash (NULL for social auth)
+    socialProvider: text('social_provider'), // 'apple', 'google', or NULL for password
+    socialId: text('social_id'), // Provider's user ID
     kycVerified: integer('kyc_verified', { mode: 'boolean' }).default(false).notNull(),
     kycVerifiedAt: integer('kyc_verified_at', { mode: 'timestamp' }),
     createdAt: integer('created_at', { mode: 'timestamp' })
@@ -34,7 +36,7 @@ export const users = sqliteTable(
   (table) => ({
     emailIdx: index('users_email_idx').on(table.email),
     phoneIdx: index('users_phone_idx').on(table.phone),
-    auth0IdIdx: index('users_auth0_id_idx').on(table.auth0Id),
+    socialIdx: index('users_social_idx').on(table.socialProvider, table.socialId),
   })
 );
 
@@ -227,6 +229,49 @@ export const p2pTransfers = sqliteTable(
   })
 );
 
+// Session model - Custom Auth
+export const sessions = sqliteTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: text('device_id').notNull(),
+    refreshTokenHash: text('refresh_token_hash').notNull(),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .default(sql`(strftime('%s', 'now'))`)
+      .notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('sessions_user_id_idx').on(table.userId),
+    deviceIdIdx: index('sessions_device_id_idx').on(table.deviceId),
+    userIdExpiresAtIdx: index('sessions_user_expires_idx').on(table.userId, table.expiresAt),
+  })
+);
+
+// MFA Secrets model - Custom Auth
+export const mfaSecrets = sqliteTable(
+  'mfa_secrets',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    secret: text('secret').notNull(), // TOTP secret (encrypted)
+    backupCodes: text('backup_codes'), // JSON array of hashed codes
+    verified: integer('verified', { mode: 'boolean' }).default(false).notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .default(sql`(strftime('%s', 'now'))`)
+      .notNull(),
+  },
+  (table) => ({
+    userIdIdx: index('mfa_secrets_user_id_idx').on(table.userId),
+  })
+);
+
 // Type exports for relations
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -251,3 +296,9 @@ export type NewReward = typeof rewards.$inferInsert;
 
 export type P2PTransfer = typeof p2pTransfers.$inferSelect;
 export type NewP2PTransfer = typeof p2pTransfers.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+
+export type MfaSecret = typeof mfaSecrets.$inferSelect;
+export type NewMfaSecret = typeof mfaSecrets.$inferInsert;
