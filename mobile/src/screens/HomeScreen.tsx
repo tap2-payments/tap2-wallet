@@ -1,6 +1,6 @@
+import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 export function HomeScreen() {
   const handleTap = () => {

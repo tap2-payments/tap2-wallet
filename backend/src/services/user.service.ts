@@ -33,14 +33,15 @@ export class UserService {
   ): Promise<User> {
     const dbClient = initDB(db);
 
+    const now = new Date();
     const newUser: NewUser = {
       id: crypto.randomUUID(),
       email: data.email,
       phone: data.phone,
       auth0Id: data.auth0Id,
       kycVerified: false,
-      createdAt: Math.floor(Date.now() / 1000),
-      updatedAt: Math.floor(Date.now() / 1000),
+      createdAt: now,
+      updatedAt: now,
     };
 
     const result = await dbClient.insert(users).values(newUser).returning();
@@ -51,8 +52,8 @@ export class UserService {
       userId: newUser.id,
       balance: 0, // Stored in cents
       currency: 'USD',
-      createdAt: Math.floor(Date.now() / 1000),
-      updatedAt: Math.floor(Date.now() / 1000),
+      createdAt: now,
+      updatedAt: now,
     };
 
     await dbClient.insert(wallets).values(newWallet);
@@ -63,12 +64,13 @@ export class UserService {
   async updateKYC(db: D1Database, userId: string, verified: boolean) {
     const dbClient = initDB(db);
 
+    const now = new Date();
     await dbClient
       .update(users)
       .set({
         kycVerified: verified,
-        kycVerifiedAt: verified ? Math.floor(Date.now() / 1000) : null,
-        updatedAt: Math.floor(Date.now() / 1000),
+        kycVerifiedAt: verified ? now : null,
+        updatedAt: now,
       })
       .where(eq(users.id, userId));
 

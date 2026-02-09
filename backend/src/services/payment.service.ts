@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { initDB, wallets, transactions, merchantPayments, merchants } from '../config/database.js';
-import type { MerchantPayment as MerchantPaymentSchema } from '../config/database.js';
+import { initDB, wallets, transactions, merchantPayments } from '../config/database.js';
 
 export interface MerchantPaymentInput {
   userId: string;
@@ -53,11 +52,12 @@ export class PaymentService {
 
     // Deduct from wallet balance
     const newBalanceCents = wallet.balance - input.amount;
+    const now = new Date();
     await dbClient
       .update(wallets)
       .set({
         balance: newBalanceCents,
-        updatedAt: Math.floor(Date.now() / 1000),
+        updatedAt: now,
       })
       .where(eq(wallets.id, wallet.id));
 
@@ -75,7 +75,7 @@ export class PaymentService {
         paymentType: input.paymentType || 'nfc',
         nfcNonce: input.nfcNonce,
       }),
-      createdAt: Math.floor(Date.now() / 1000),
+      createdAt: now,
     });
 
     // Create merchant payment record
@@ -87,7 +87,7 @@ export class PaymentService {
       paymentType: input.paymentType === 'qr' ? 'QR' : 'NFC',
       nfcNonce: input.nfcNonce,
       tipAmount: 0,
-      createdAt: Math.floor(Date.now() / 1000),
+      createdAt: now,
     });
 
     // TODO: Sprint 2/3 - Process payment with Stripe
@@ -100,7 +100,7 @@ export class PaymentService {
     await dbClient
       .update(merchantPayments)
       .set({
-        completedAt: Math.floor(Date.now() / 1000),
+        completedAt: new Date(),
       })
       .where(eq(merchantPayments.transactionId, transactionId));
 
@@ -136,7 +136,7 @@ export class PaymentService {
       status: transaction.status.toLowerCase(),
       amount: transaction.amount / 100, // Convert cents to dollars
       currency: 'USD',
-      timestamp: new Date((transaction.createdAt as number) * 1000),
+      timestamp: transaction.createdAt as Date,
       newBalance: 0, // Would need to fetch current wallet balance
     };
   }
@@ -152,7 +152,7 @@ export class PaymentService {
     await dbClient
       .update(merchantPayments)
       .set({
-        completedAt: Math.floor(Date.now() / 1000),
+        completedAt: new Date(),
       })
       .where(eq(merchantPayments.transactionId, paymentId));
   }
@@ -182,7 +182,7 @@ export class PaymentService {
         .update(wallets)
         .set({
           balance: transaction.wallet.balance + transaction.amount,
-          updatedAt: Math.floor(Date.now() / 1000),
+          updatedAt: new Date(),
         })
         .where(eq(wallets.id, transaction.wallet.id));
     }
@@ -237,7 +237,7 @@ export class PaymentService {
       id: tx.id,
       amount: tx.amount / 100,
       status: tx.status.toLowerCase(),
-      createdAt: new Date((tx.createdAt as number) * 1000),
+      createdAt: tx.createdAt as Date,
     }));
   }
 }

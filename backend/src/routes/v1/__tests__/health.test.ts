@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { healthRouter } from '../health.js';
 import type { Env } from '../../../index.js';
 
@@ -15,6 +15,13 @@ const mockEnv = {
   ENVIRONMENT: 'test',
 } satisfies Env;
 
+// Create a properly typed mock statement
+function createMockStatement(firstResult: unknown) {
+  return {
+    first: vi.fn().mockResolvedValue(firstResult),
+  } as unknown as D1PreparedStatement;
+}
+
 describe('Health Check API', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -22,9 +29,7 @@ describe('Health Check API', () => {
 
   describe('GET /api/v1/health', () => {
     it('should return 200 OK status when database is connected', async () => {
-      vi.mocked(mockDB.prepare).mockReturnValue({
-        first: vi.fn().mockResolvedValue({ '?column?': 1 }),
-      } as any);
+      vi.mocked(mockDB.prepare).mockReturnValue(createMockStatement({ '?column?': 1 }));
 
       const request = new Request('http://localhost/api/v1/health');
       const ctx = {
@@ -44,9 +49,9 @@ describe('Health Check API', () => {
     });
 
     it('should return error status when database is disconnected', async () => {
-      vi.mocked(mockDB.prepare).mockReturnValue({
-        first: vi.fn().mockRejectedValue(new Error('Connection refused')),
-      } as any);
+      vi.mocked(mockDB.prepare).mockReturnValue(
+        createMockStatement(Promise.reject(new Error('Connection refused')))
+      );
 
       const request = new Request('http://localhost/api/v1/health');
       const response = await healthRouter.fetch(request, { env: mockEnv });
@@ -63,9 +68,7 @@ describe('Health Check API', () => {
 
   describe('GET /api/v1/health/db', () => {
     it('should return 200 OK when database is connected', async () => {
-      vi.mocked(mockDB.prepare).mockReturnValue({
-        first: vi.fn().mockResolvedValue({}),
-      } as any);
+      vi.mocked(mockDB.prepare).mockReturnValue(createMockStatement({}));
 
       const request = new Request('http://localhost/api/v1/health/db');
       const response = await healthRouter.fetch(request, { env: mockEnv });
@@ -80,9 +83,9 @@ describe('Health Check API', () => {
     });
 
     it('should return 503 when database is disconnected', async () => {
-      vi.mocked(mockDB.prepare).mockReturnValue({
-        first: vi.fn().mockRejectedValue(new Error('Connection refused')),
-      } as any);
+      vi.mocked(mockDB.prepare).mockReturnValue(
+        createMockStatement(Promise.reject(new Error('Connection refused')))
+      );
 
       const request = new Request('http://localhost/api/v1/health/db');
       const response = await healthRouter.fetch(request, { env: mockEnv });

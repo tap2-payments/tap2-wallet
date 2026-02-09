@@ -59,7 +59,7 @@ app.options('*', (c) => {
     c.header('Access-Control-Allow-Credentials', 'true');
   }
 
-  return c.text('', 204 as any);
+  return c.body(null, 204);
 });
 
 // Request logging

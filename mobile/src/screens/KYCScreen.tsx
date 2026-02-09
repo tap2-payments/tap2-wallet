@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 
-import { useAuth } from '@/contexts/AuthContext';
-
 type KYCStatus = 'not_started' | 'pending' | 'in_progress' | 'completed' | 'failed';
 
 interface KYCScreenProps {
