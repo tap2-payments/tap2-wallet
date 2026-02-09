@@ -167,8 +167,13 @@ export async function verifyAccessToken(
   }
 
   const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[0])));
-  const keyVersion = (header.kid as string) || CURRENT_VERSION;
 
+  // Reject tokens without key version header
+  if (!header.kid) {
+    throw new Error('Token missing key version identifier (kid header)');
+  }
+
+  const keyVersion = header.kid as string;
   const secret = getSecretByVersion(secrets, keyVersion);
 
   const result = await jwtVerify(token, new TextEncoder().encode(secret), {
@@ -203,8 +208,13 @@ export async function verifyRefreshToken(
   }
 
   const header = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[0])));
-  const keyVersion = (header.kid as string) || CURRENT_VERSION;
 
+  // Reject tokens without key version header
+  if (!header.kid) {
+    throw new Error('Token missing key version identifier (kid header)');
+  }
+
+  const keyVersion = header.kid as string;
   const secret = getSecretByVersion(secrets, keyVersion);
 
   const result = await jwtVerify(token, new TextEncoder().encode(secret), {

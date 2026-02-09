@@ -118,6 +118,8 @@ export async function resetRateLimit(kv: KVNamespace, key: string): Promise<void
 /**
  * Rate limit key generators for common patterns
  */
+export type RateLimitKeyGenerator = (identifier: string, endpoint: string) => string;
+
 export const RateLimitKeys = {
   /** IP-based rate limiting */
   ip: (ip: string, endpoint: string) => `ratelimit:ip:${ip}:${endpoint}`,
@@ -132,7 +134,7 @@ export const RateLimitKeys = {
   phone: (phone: string, endpoint: string) => `ratelimit:phone:${phone}:${endpoint}`,
 
   /** Global endpoint rate limiting */
-  global: (endpoint: string) => `ratelimit:global:${endpoint}`,
+  global: (_identifier: string, endpoint: string) => `ratelimit:global:${endpoint}`,
 } as const;
 
 /**
@@ -164,17 +166,31 @@ export const RateLimitConfig = {
  * @param getIdentifier - Function to extract identifier from context
  * @param endpoint - Endpoint name for key generation
  * @param config - Rate limit configuration
+ * @param keyGenerator - Optional key generator function (defaults to user-based)
  *
  * @example
  * ```ts
- * import { rateLimitMiddleware } from '@/lib/rate-limit';
+ * import { createRateLimitMiddleware, RateLimitKeys, RateLimitConfig } from '@/lib/rate-limit';
  *
+ * // IP-based rate limiting for login
  * app.use(
  *   '/api/v1/auth/login',
- *   rateLimitMiddleware(
+ *   createRateLimitMiddleware(
  *     (c) => c.req.header('CF-Connecting-IP') || 'unknown',
  *     'login',
- *     RateLimitConfig.login
+ *     RateLimitConfig.login,
+ *     RateLimitKeys.ip
+ *   )
+ * );
+ *
+ * // User-based rate limiting for API
+ * app.use(
+ *   '/api/v1/payments/*',
+ *   createRateLimitMiddleware(
+ *     (c) => c.get('userId') || 'unknown',
+ *     'payments',
+ *     RateLimitConfig.payment,
+ *     RateLimitKeys.user
  *   )
  * );
  * ```
@@ -186,11 +202,12 @@ export function createRateLimitMiddleware<
 >(
   getIdentifier: (c: Context<{ Bindings: E }>) => string,
   endpoint: string,
-  config: { limit: number; window: number }
+  config: { limit: number; window: number },
+  keyGenerator: RateLimitKeyGenerator = RateLimitKeys.user
 ) {
   return async (c: Context<{ Bindings: E }>, next: () => Promise<void>) => {
     const identifier = getIdentifier(c);
-    const key = RateLimitKeys.user(identifier, endpoint);
+    const key = keyGenerator(identifier, endpoint);
 
     const result = await checkRateLimit(c.env.KV, key, config.limit, config.window);
 

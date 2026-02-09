@@ -6,7 +6,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import { verifyAccessToken, type AccessTokenPayload } from './jwt.js';
+import { verifyAccessToken, type AccessTokenPayload } from '@/lib/jwt.js';
 
 /**
  * Extended Hono variables with authenticated user info
