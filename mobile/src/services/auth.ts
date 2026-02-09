@@ -1,37 +1,26 @@
 import * as SecureStore from 'expo-secure-store';
-import Auth0 from 'react-native-auth0';
 
 import { axiosInstance } from './api';
 
-// Auth0 configuration
-const AUTH0_DOMAIN = process.env.EXPO_PUBLIC_AUTH0_DOMAIN || '';
-const AUTH0_CLIENT_ID = process.env.EXPO_PUBLIC_AUTH0_CLIENT_ID || '';
-
-const auth0 = new Auth0({
-  domain: AUTH0_DOMAIN,
-  clientId: AUTH0_CLIENT_ID,
-});
+// API base URL
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
 
 // Storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
-const ID_TOKEN_KEY = 'id_token';
 const USER_KEY = 'user';
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken?: string;
-  idToken: string;
+  refreshToken: string;
   expiresIn: number;
 }
 
 export interface AuthUser {
-  sub: string;
+  id: string;
   email: string;
-  emailVerified: boolean;
-  name: string;
-  nickname: string;
-  picture: string;
+  phone: string;
+  kycVerified: boolean;
   createdAt: string;
 }
 
@@ -45,6 +34,7 @@ export interface AuthState {
 /**
  * Authentication Service
  * Handles login, logout, token management, and user session
+ * Uses custom backend API instead of Auth0
  */
 class AuthService {
   private initialized = false;
@@ -56,6 +46,7 @@ class AuthService {
   };
 
   private listeners: Set<(state: AuthState) => void> = new Set();
+  private refreshPromise: Promise<AuthTokens | null> | null = null;
 
   /**
    * Initialize the auth service and check for existing session
@@ -66,14 +57,13 @@ class AuthService {
     }
 
     try {
-      const [accessToken, refreshToken, idToken, userStr] = await Promise.all([
+      const [accessToken, refreshToken, userStr] = await Promise.all([
         SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
         SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
-        SecureStore.getItemAsync(ID_TOKEN_KEY),
         SecureStore.getItemAsync(USER_KEY),
       ]);
 
-      if (accessToken && idToken && userStr) {
+      if (accessToken && userStr) {
         const user = JSON.parse(userStr) as AuthUser;
         this.state = {
           isAuthenticated: true,
@@ -81,8 +71,7 @@ class AuthService {
           user,
           tokens: {
             accessToken,
-            refreshToken: refreshToken || undefined,
-            idToken,
+            refreshToken: refreshToken || '',
             expiresIn: 0, // Will be validated on API calls
           },
         };
@@ -113,41 +102,36 @@ class AuthService {
   }
 
   /**
-   * Login with email and password using Auth0 Passwordless or OAuth
+   * Login with email and password using custom backend API
    */
   async login(email: string, password: string): Promise<AuthUser> {
     try {
-      const credentials = await auth0.auth.passwordRealm({
-        username: email,
-        password,
-        realm: 'Username-Password-Authentication',
-        scope: 'openid profile email offline_access',
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (!credentials.accessToken || !credentials.idToken) {
-        throw new Error('Invalid credentials received');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed. Please check your credentials.');
       }
 
-      // Fetch user info
-      const userInfo = await auth0.auth.userInfo({
-        token: credentials.accessToken,
-      });
-
       const user: AuthUser = {
-        sub: userInfo.sub || '',
-        email: userInfo.email || '',
-        emailVerified: userInfo.emailVerified || false,
-        name: userInfo.name || '',
-        nickname: userInfo.nickname || '',
-        picture: userInfo.picture || '',
-        createdAt: userInfo.updatedAt || new Date().toISOString(),
+        id: data.user.id,
+        email: data.user.email,
+        phone: data.user.phone,
+        kycVerified: data.user.kycVerified || false,
+        createdAt: data.user.createdAt || new Date().toISOString(),
       };
 
       // Store tokens securely
       await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, credentials.accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, credentials.refreshToken || ''),
-        SecureStore.setItemAsync(ID_TOKEN_KEY, credentials.idToken),
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
         SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
       ]);
 
@@ -156,14 +140,13 @@ class AuthService {
         isLoading: false,
         user,
         tokens: {
-          accessToken: credentials.accessToken,
-          refreshToken: credentials.refreshToken,
-          idToken: credentials.idToken,
-          expiresIn: credentials.expiresIn || 3600,
+          accessToken: data.tokens.accessToken,
+          refreshToken: data.tokens.refreshToken,
+          expiresIn: data.tokens.expiresIn || 900,
         },
       };
 
-      this.configureAxios(credentials.accessToken);
+      this.configureAxios(data.tokens.accessToken);
       this.notifyListeners();
 
       return user;
@@ -178,22 +161,52 @@ class AuthService {
   /**
    * Register a new user with email and password
    */
-  async register(email: string, password: string, name: string): Promise<AuthUser> {
+  async register(email: string, password: string, phone: string): Promise<AuthUser> {
     try {
-      // Auth0 requires using the Management API for user creation
-      // For now, we'll use the Auth0 Authentication API with signup endpoint
-      await auth0.auth.createUser({
-        email,
-        password,
-        username: email.split('@')[0],
-        connection: 'Username-Password-Authentication',
-        metadata: {
-          name,
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ email, phone, password }),
       });
 
-      // Auto-login after registration
-      return this.login(email, password);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed. Please try again.');
+      }
+
+      const user: AuthUser = {
+        id: data.user.id,
+        email: data.user.email,
+        phone: data.user.phone,
+        kycVerified: false,
+        createdAt: data.user.createdAt || new Date().toISOString(),
+      };
+
+      // Store tokens (user is automatically logged in after registration)
+      await Promise.all([
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
+        SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+      ]);
+
+      this.state = {
+        isAuthenticated: true,
+        isLoading: false,
+        user,
+        tokens: {
+          accessToken: data.tokens.accessToken,
+          refreshToken: data.tokens.refreshToken,
+          expiresIn: data.tokens.expiresIn || 900,
+        },
+      };
+
+      this.configureAxios(data.tokens.accessToken);
+      this.notifyListeners();
+
+      return user;
     } catch (error) {
       console.error('Registration failed:', error);
       throw new Error(
@@ -207,10 +220,27 @@ class AuthService {
    */
   async logout(): Promise<void> {
     try {
+      // Call backend logout endpoint to invalidate session
+      const refreshToken = this.state.tokens?.refreshToken;
+      if (refreshToken) {
+        try {
+          await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${this.state.tokens?.accessToken}`,
+            },
+            body: JSON.stringify({ refreshToken }),
+          });
+        } catch (error) {
+          console.error('Backend logout failed:', error);
+          // Continue with local logout even if backend call fails
+        }
+      }
+
       await Promise.all([
         SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
         SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-        SecureStore.deleteItemAsync(ID_TOKEN_KEY),
         SecureStore.deleteItemAsync(USER_KEY),
       ]);
 
@@ -233,6 +263,22 @@ class AuthService {
    * Refresh the access token using refresh token
    */
   async refreshTokens(): Promise<AuthTokens | null> {
+    // Use existing refresh promise if in progress (prevents multiple simultaneous refreshes)
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.performTokenRefresh();
+
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  private async performTokenRefresh(): Promise<AuthTokens | null> {
     const refreshToken = this.state.tokens?.refreshToken;
 
     if (!refreshToken) {
@@ -240,28 +286,32 @@ class AuthService {
     }
 
     try {
-      const credentials = await auth0.auth.refreshToken({
-        refreshToken,
-        scope: 'openid profile email offline_access',
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
       });
 
-      if (!credentials.accessToken || !credentials.idToken) {
-        throw new Error('Invalid refresh token response');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Token refresh failed');
       }
 
       await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, credentials.accessToken),
-        SecureStore.setItemAsync(ID_TOKEN_KEY, credentials.idToken),
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
       ]);
 
       this.state.tokens = {
-        ...this.state.tokens!,
-        accessToken: credentials.accessToken,
-        idToken: credentials.idToken,
-        expiresIn: credentials.expiresIn || 3600,
+        accessToken: data.tokens.accessToken,
+        refreshToken: data.tokens.refreshToken,
+        expiresIn: data.tokens.expiresIn || 900,
       };
 
-      this.configureAxios(credentials.accessToken);
+      this.configureAxios(data.tokens.accessToken);
       this.notifyListeners();
 
       return this.state.tokens;
