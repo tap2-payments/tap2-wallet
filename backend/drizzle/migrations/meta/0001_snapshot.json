@@ -83,31 +83,22 @@
       "indexes": {
         "merchant_payments_transaction_id_unique": {
           "name": "merchant_payments_transaction_id_unique",
-          "columns": [
-            "transaction_id"
-          ],
+          "columns": ["transaction_id"],
           "isUnique": true
         },
         "merchant_payments_merchant_id_idx": {
           "name": "merchant_payments_merchant_id_idx",
-          "columns": [
-            "merchant_id"
-          ],
+          "columns": ["merchant_id"],
           "isUnique": false
         },
         "merchant_payments_merchant_created_idx": {
           "name": "merchant_payments_merchant_created_idx",
-          "columns": [
-            "merchant_id",
-            "created_at"
-          ],
+          "columns": ["merchant_id", "created_at"],
           "isUnique": false
         },
         "merchant_payments_payment_type_idx": {
           "name": "merchant_payments_payment_type_idx",
-          "columns": [
-            "payment_type"
-          ],
+          "columns": ["payment_type"],
           "isUnique": false
         }
       },
@@ -116,12 +107,8 @@
           "name": "merchant_payments_transaction_id_transactions_id_fk",
           "tableFrom": "merchant_payments",
           "tableTo": "transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -129,12 +116,8 @@
           "name": "merchant_payments_merchant_id_merchants_id_fk",
           "tableFrom": "merchant_payments",
           "tableTo": "merchants",
-          "columnsFrom": [
-            "merchant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["merchant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -142,12 +125,8 @@
           "name": "merchant_payments_payment_method_id_payment_methods_id_fk",
           "tableFrom": "merchant_payments",
           "tableTo": "payment_methods",
-          "columnsFrom": [
-            "payment_method_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["payment_method_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -207,23 +186,17 @@
       "indexes": {
         "merchants_tap2_id_unique": {
           "name": "merchants_tap2_id_unique",
-          "columns": [
-            "tap2_id"
-          ],
+          "columns": ["tap2_id"],
           "isUnique": true
         },
         "merchants_tap2_id_idx": {
           "name": "merchants_tap2_id_idx",
-          "columns": [
-            "tap2_id"
-          ],
+          "columns": ["tap2_id"],
           "isUnique": false
         },
         "merchants_is_active_idx": {
           "name": "merchants_is_active_idx",
-          "columns": [
-            "is_active"
-          ],
+          "columns": ["is_active"],
           "isUnique": false
         }
       },
@@ -304,39 +277,27 @@
       "indexes": {
         "p2p_transfers_transaction_id_unique": {
           "name": "p2p_transfers_transaction_id_unique",
-          "columns": [
-            "transaction_id"
-          ],
+          "columns": ["transaction_id"],
           "isUnique": true
         },
         "p2p_transfers_status_idx": {
           "name": "p2p_transfers_status_idx",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "p2p_transfers_expires_at_idx": {
           "name": "p2p_transfers_expires_at_idx",
-          "columns": [
-            "expires_at"
-          ],
+          "columns": ["expires_at"],
           "isUnique": false
         },
         "p2p_transfers_sender_created_idx": {
           "name": "p2p_transfers_sender_created_idx",
-          "columns": [
-            "sender_id",
-            "created_at"
-          ],
+          "columns": ["sender_id", "created_at"],
           "isUnique": false
         },
         "p2p_transfers_recipient_created_idx": {
           "name": "p2p_transfers_recipient_created_idx",
-          "columns": [
-            "recipient_id",
-            "created_at"
-          ],
+          "columns": ["recipient_id", "created_at"],
           "isUnique": false
         }
       },
@@ -345,12 +306,8 @@
           "name": "p2p_transfers_transaction_id_transactions_id_fk",
           "tableFrom": "p2p_transfers",
           "tableTo": "transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -358,12 +315,8 @@
           "name": "p2p_transfers_sender_id_users_id_fk",
           "tableFrom": "p2p_transfers",
           "tableTo": "users",
-          "columnsFrom": [
-            "sender_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sender_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -371,12 +324,8 @@
           "name": "p2p_transfers_recipient_id_users_id_fk",
           "tableFrom": "p2p_transfers",
           "tableTo": "users",
-          "columnsFrom": [
-            "recipient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recipient_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -472,17 +421,12 @@
       "indexes": {
         "payment_methods_user_id_idx": {
           "name": "payment_methods_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "payment_methods_user_type_idx": {
           "name": "payment_methods_user_type_idx",
-          "columns": [
-            "user_id",
-            "type"
-          ],
+          "columns": ["user_id", "type"],
           "isUnique": false
         }
       },
@@ -491,12 +435,8 @@
           "name": "payment_methods_user_id_users_id_fk",
           "tableFrom": "payment_methods",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -563,24 +503,17 @@
       "indexes": {
         "rewards_user_id_idx": {
           "name": "rewards_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         },
         "rewards_user_expires_idx": {
           "name": "rewards_user_expires_idx",
-          "columns": [
-            "user_id",
-            "expires_at"
-          ],
+          "columns": ["user_id", "expires_at"],
           "isUnique": false
         },
         "rewards_merchant_id_idx": {
           "name": "rewards_merchant_id_idx",
-          "columns": [
-            "merchant_id"
-          ],
+          "columns": ["merchant_id"],
           "isUnique": false
         }
       },
@@ -589,12 +522,8 @@
           "name": "rewards_user_id_users_id_fk",
           "tableFrom": "rewards",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -602,12 +531,8 @@
           "name": "rewards_merchant_id_merchants_id_fk",
           "tableFrom": "rewards",
           "tableTo": "merchants",
-          "columnsFrom": [
-            "merchant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["merchant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -615,12 +540,8 @@
           "name": "rewards_transaction_id_transactions_id_fk",
           "tableFrom": "rewards",
           "tableTo": "transactions",
-          "columnsFrom": [
-            "transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -694,38 +615,27 @@
       "indexes": {
         "transactions_wallet_id_idx": {
           "name": "transactions_wallet_id_idx",
-          "columns": [
-            "wallet_id"
-          ],
+          "columns": ["wallet_id"],
           "isUnique": false
         },
         "transactions_status_idx": {
           "name": "transactions_status_idx",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         },
         "transactions_type_idx": {
           "name": "transactions_type_idx",
-          "columns": [
-            "type"
-          ],
+          "columns": ["type"],
           "isUnique": false
         },
         "transactions_created_at_idx": {
           "name": "transactions_created_at_idx",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         },
         "transactions_wallet_created_idx": {
           "name": "transactions_wallet_created_idx",
-          "columns": [
-            "wallet_id",
-            "created_at"
-          ],
+          "columns": ["wallet_id", "created_at"],
           "isUnique": false
         }
       },
@@ -734,12 +644,8 @@
           "name": "transactions_wallet_id_wallets_id_fk",
           "tableFrom": "transactions",
           "tableTo": "wallets",
-          "columnsFrom": [
-            "wallet_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["wallet_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -814,44 +720,32 @@
       "indexes": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         },
         "users_phone_unique": {
           "name": "users_phone_unique",
-          "columns": [
-            "phone"
-          ],
+          "columns": ["phone"],
           "isUnique": true
         },
         "users_auth0_id_unique": {
           "name": "users_auth0_id_unique",
-          "columns": [
-            "auth0_id"
-          ],
+          "columns": ["auth0_id"],
           "isUnique": true
         },
         "users_email_idx": {
           "name": "users_email_idx",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": false
         },
         "users_phone_idx": {
           "name": "users_phone_idx",
-          "columns": [
-            "phone"
-          ],
+          "columns": ["phone"],
           "isUnique": false
         },
         "users_auth0_id_idx": {
           "name": "users_auth0_id_idx",
-          "columns": [
-            "auth0_id"
-          ],
+          "columns": ["auth0_id"],
           "isUnique": false
         }
       },
@@ -913,16 +807,12 @@
       "indexes": {
         "wallets_user_id_unique": {
           "name": "wallets_user_id_unique",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": true
         },
         "wallets_user_id_idx": {
           "name": "wallets_user_id_idx",
-          "columns": [
-            "user_id"
-          ],
+          "columns": ["user_id"],
           "isUnique": false
         }
       },
@@ -931,12 +821,8 @@
           "name": "wallets_user_id_users_id_fk",
           "tableFrom": "wallets",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
