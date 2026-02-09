@@ -3,6 +3,7 @@ import { logger } from 'hono/logger'
 import { healthRouter } from './routes/v1/health.js'
 import { walletRouter } from './routes/v1/wallet.js'
 import { paymentsRouter } from './routes/v1/payments.js'
+import { fundingRouter } from './routes/v1/funding.js'
 
 // Environment interface for Cloudflare Workers bindings
 export interface Env {
@@ -82,6 +83,7 @@ app.get('/health', (c) => {
 app.route('/api/v1/health', healthRouter)
 app.route('/api/v1/wallet', walletRouter)
 app.route('/api/v1/payments', paymentsRouter)
+app.route('/api/v1/funding-sources', fundingRouter)
 
 // 404 handler
 app.notFound((c) => {

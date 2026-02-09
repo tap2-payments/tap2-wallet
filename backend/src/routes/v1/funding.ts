@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Env } from '../../index.js';
 import { initDB } from '@/config/database';
 import { fundingSources } from '@/drizzle/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, neq } from 'drizzle-orm';
 
 export const fundingRouter = new Hono<{ Bindings: Env }>();
 
@@ -147,12 +147,12 @@ fundingRouter.patch(
         return c.json({ error: 'Funding source not found' }, 404);
       }
 
-      // If setting as default, unset other defaults
+      // If setting as default, unset other defaults (exclude current row)
       if (body.isDefault === true) {
         await initDB(c.env.DB)
           .update(fundingSources)
           .set({ isDefault: false })
-          .where(and(eq(fundingSources.userId, userId), eq(fundingSources.id, id)));
+          .where(and(eq(fundingSources.userId, userId), neq(fundingSources.id, id)));
       }
 
       const [updated] = await initDB(c.env.DB)
