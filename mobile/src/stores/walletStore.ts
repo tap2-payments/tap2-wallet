@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import type { Transaction } from '@/types';
 
 interface WalletState {

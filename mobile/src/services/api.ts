@@ -1,9 +1,7 @@
 import axios from 'axios';
 
 // API base URL - configure for different environments
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:3001/api/v1'
-  : 'https://api.tap2wallet.com/v1';
+const API_BASE_URL = __DEV__ ? 'http://localhost:3001/api/v1' : 'https://api.tap2wallet.com/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -46,4 +44,5 @@ apiClient.interceptors.response.use(
   }
 );
 
+export { apiClient as axiosInstance };
 export default apiClient;
