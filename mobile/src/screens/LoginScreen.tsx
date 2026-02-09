@@ -21,7 +21,7 @@ export function LoginScreen(): React.JSX.Element {
   const [mode, setMode] = useState<FormMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -42,8 +42,8 @@ export function LoginScreen(): React.JSX.Element {
     }
 
     if (mode === 'register') {
-      if (!name) {
-        Alert.alert('Error', 'Please enter your name');
+      if (!phone) {
+        Alert.alert('Error', 'Please enter your phone number');
         return false;
       }
       if (password !== confirmPassword) {
@@ -65,7 +65,7 @@ export function LoginScreen(): React.JSX.Element {
         await login(email, password);
         // Navigation is handled by auth state change
       } else if (mode === 'register') {
-        await register(email, password, name);
+        await register(email, password, phone);
         Alert.alert('Success', 'Account created successfully!');
       }
     } catch (error) {
@@ -78,6 +78,7 @@ export function LoginScreen(): React.JSX.Element {
   const toggleMode = () => {
     setMode((prev) => (prev === 'login' ? 'register' : 'login'));
     setPassword('');
+    setPhone('');
     setConfirmPassword('');
   };
 
@@ -98,11 +99,12 @@ export function LoginScreen(): React.JSX.Element {
           {mode === 'register' && (
             <TextInput
               style={styles.input}
-              placeholder="Full Name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
+              placeholder="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="phone-pad"
             />
           )}
 
