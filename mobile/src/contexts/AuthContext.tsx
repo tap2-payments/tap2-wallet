@@ -4,7 +4,7 @@ import { authService, AuthState, AuthUser } from '@/services/auth';
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (email: string, password: string, name: string) => Promise<AuthUser>;
+  register: (email: string, password: string, phone: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refreshTokens: () => Promise<AuthState['tokens'] | null>;
 }
@@ -64,8 +64,8 @@ export function AuthProvider({ children }: AuthProviderProps): React.JSX.Element
     return user;
   };
 
-  const register = async (email: string, password: string, name: string) => {
-    const user = await authService.register(email, password, name);
+  const register = async (email: string, password: string, phone: string) => {
+    const user = await authService.register(email, password, phone);
     return user;
   };
 
