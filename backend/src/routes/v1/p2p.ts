@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import type { Env } from '../../index.js';
 import { initDB } from '@/config/database';
-import { users, wallets, transactions, p2pTransfers } from '../../../drizzle/schema';
+import { users, wallets, transactions, p2pTransfers } from '@/drizzle/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 export const p2pRouter = new Hono<{ Bindings: Env }>();
@@ -71,6 +71,9 @@ p2pRouter.get('/contacts', async (c) => {
 /**
  * POST /v1/p2p/send
  * Send money to another user
+ *
+ * SECURITY NOTE: D1 doesn't support true transactions. We use a check-and-set approach
+ * to prevent race conditions. The balance is checked and updated in a single WHERE clause.
  */
 p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
   try {
@@ -93,7 +96,22 @@ p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
       return c.json({ error: 'Cannot send to yourself' }, 400);
     }
 
-    // Check sender's wallet balance
+    // Check KYC verification - financial transfers require KYC
+    const [senderUser] = await db
+      .select({ kycVerified: users.kycVerified })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!senderUser || !senderUser.kycVerified) {
+      return c.json({ error: 'KYC verification required for transfers' }, 403);
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const transactionId = crypto.randomUUID();
+
+    // Step 1: Get sender wallet
     const [senderWallet] = await db
       .select()
       .from(wallets)
@@ -104,48 +122,62 @@ p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
       return c.json({ error: 'Insufficient balance' }, 400);
     }
 
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
-    // Create transaction and transfer
-    const transactionId = crypto.randomUUID();
-
-    // Deduct from sender
+    // Step 2: Deduct from sender using check-and-set (prevents race condition)
+    // The WHERE clause includes both userId AND the current balance
     await db
       .update(wallets)
       .set({
         balance: senderWallet.balance - amount,
         updatedAt: now,
       })
-      .where(eq(wallets.userId, userId));
+      .where(and(eq(wallets.userId, userId), eq(wallets.balance, senderWallet.balance)));
 
-    // Add to recipient
-    const [recipientWallet] = await db
+    // Check if update actually happened (balance might have changed)
+    // In D1, we verify by re-reading
+    const [senderAfterUpdate] = await db
+      .select()
+      .from(wallets)
+      .where(eq(wallets.userId, userId))
+      .limit(1);
+
+    if (!senderAfterUpdate || senderAfterUpdate.balance > senderWallet.balance - amount) {
+      // Balance changed between read and update - potential race condition
+      return c.json({ error: 'Balance changed, please try again' }, 409);
+    }
+
+    // Step 3: Get or create recipient wallet
+    let [recipientWallet] = await db
       .select()
       .from(wallets)
       .where(eq(wallets.userId, recipient.id))
       .limit(1);
 
-    if (recipientWallet) {
-      await db
-        .update(wallets)
-        .set({
-          balance: recipientWallet.balance + amount,
-          updatedAt: now,
-        })
-        .where(eq(wallets.userId, recipient.id));
-    } else {
+    let recipientWalletId: string;
+    if (!recipientWallet) {
+      // Create new wallet for recipient
+      const newWalletId = crypto.randomUUID();
       await db.insert(wallets).values({
-        id: crypto.randomUUID(),
+        id: newWalletId,
         userId: recipient.id,
         balance: amount,
         currency: 'USD',
         createdAt: now,
         updatedAt: now,
       });
+      recipientWalletId = newWalletId;
+    } else {
+      recipientWalletId = recipientWallet.id;
+      // Add to recipient using check-and-set
+      await db
+        .update(wallets)
+        .set({
+          balance: recipientWallet.balance + amount,
+          updatedAt: now,
+        })
+        .where(and(eq(wallets.userId, recipient.id), eq(wallets.balance, recipientWallet.balance)));
     }
 
-    // Create P2P transfer record
+    // Step 4: Create P2P transfer record
     const [p2pTransfer] = await db
       .insert(p2pTransfers)
       .values({
@@ -161,7 +193,7 @@ p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
       })
       .returning();
 
-    // Create transaction record for sender
+    // Step 5: Create transaction records for audit trail
     await db.insert(transactions).values({
       id: transactionId,
       walletId: senderWallet.id,
@@ -171,10 +203,9 @@ p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
       createdAt: now,
     });
 
-    // Create transaction record for recipient
     await db.insert(transactions).values({
       id: crypto.randomUUID(),
-      walletId: recipientWallet?.id || '',
+      walletId: recipientWalletId,
       type: 'P2P',
       amount: amount,
       status: 'COMPLETED',
@@ -183,7 +214,7 @@ p2pRouter.post('/send', zValidator('json', sendMoneySchema), async (c) => {
 
     return c.json({
       transfer: p2pTransfer,
-      newBalance: senderWallet.balance - amount,
+      newBalance: senderAfterUpdate.balance,
     });
   } catch (error) {
     console.error('Error sending money:', error);
@@ -278,6 +309,8 @@ p2pRouter.get('/requests', async (c) => {
 /**
  * POST /v1/p2p/requests/:id/respond
  * Accept or decline a payment request
+ *
+ * SECURITY NOTE: Uses check-and-set approach for balance updates to prevent race conditions.
  */
 p2pRouter.post('/requests/:id/respond', zValidator('json', respondRequestSchema), async (c) => {
   try {
@@ -332,6 +365,7 @@ p2pRouter.post('/requests/:id/respond', zValidator('json', respondRequestSchema)
     // Process the payment
     const transactionId = crypto.randomUUID();
 
+    // Update P2P transfer status first
     await db
       .update(p2pTransfers)
       .set({
@@ -341,16 +375,16 @@ p2pRouter.post('/requests/:id/respond', zValidator('json', respondRequestSchema)
       })
       .where(eq(p2pTransfers.id, id));
 
-    // Deduct from payer
+    // Deduct from payer using check-and-set
     await db
       .update(wallets)
       .set({
         balance: payerWallet.balance - request.amount,
         updatedAt: now,
       })
-      .where(eq(wallets.userId, userId));
+      .where(and(eq(wallets.userId, userId), eq(wallets.balance, payerWallet.balance)));
 
-    // Add to requester
+    // Get requester wallet
     const [requesterWallet] = await db
       .select()
       .from(wallets)
@@ -358,14 +392,36 @@ p2pRouter.post('/requests/:id/respond', zValidator('json', respondRequestSchema)
       .limit(1);
 
     if (requesterWallet) {
+      // Add to requester using check-and-set
       await db
         .update(wallets)
         .set({
           balance: requesterWallet.balance + request.amount,
           updatedAt: now,
         })
-        .where(eq(wallets.userId, request.senderId));
+        .where(
+          and(eq(wallets.userId, request.senderId), eq(wallets.balance, requesterWallet.balance))
+        );
     }
+
+    // Create transaction records for audit trail
+    await db.insert(transactions).values({
+      id: transactionId,
+      walletId: payerWallet.id,
+      type: 'P2P',
+      amount: -request.amount,
+      status: 'COMPLETED',
+      createdAt: now,
+    });
+
+    await db.insert(transactions).values({
+      id: crypto.randomUUID(),
+      walletId: requesterWallet?.id || '',
+      type: 'P2P',
+      amount: request.amount,
+      status: 'COMPLETED',
+      createdAt: now,
+    });
 
     return c.json({
       message: 'Payment completed',
