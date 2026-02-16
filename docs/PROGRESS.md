@@ -54,23 +54,31 @@
 
 ### Sprint 1: Authentication & Identity 🚧 In Progress
 
-**Completed:**
+**Backend Authentication (Completed):**
 
-- [x] Auth0 integration (react-native-auth0 SDK)
-- [x] AuthContext for state management
-- [x] Login and registration screens
-- [x] Secure token storage (expo-secure-store)
-- [x] Biometric authentication service (Face ID/Touch ID)
-- [x] PIN setup and verification screens
-- [x] KYC verification screen (placeholder for Persona SDK)
+- [x] Custom authentication implementation (edge-native Cloudflare Workers)
+- [x] Argon2id password hashing
+- [x] JWT token management with key rotation support
+- [x] KV-based rate limiting
+- [x] Auth middleware for protected routes
+- [x] Database schema for users, sessions, mfa_secrets
+- [x] Auth endpoints: register, login, logout, refresh
+- [x] PR #36: Custom Authentication implementation
 
-**Pending:**
+**Mobile Authentication (Pending):**
 
-- [ ] Merge PR #31: Authentication & Identity implementation
+- [ ] Mobile auth context & services (React Native)
+- [ ] Replace Auth0 SDK in mobile app with custom auth API client
+- [ ] Biometric authentication service (Face ID/Touch ID) - screens already exist
+- [ ] PIN setup and verification screens - screens already exist
+- [ ] KYC verification screen (placeholder for Persona SDK)
+
+**Integration Tasks:**
+
 - [ ] Integrate Persona SDK for KYC verification
 - [ ] Test on physical device (biometrics require real hardware)
 - [ ] Add loading screen for auth initialization
-- [ ] Implement forgot password flow
+- [ ] Implement forgot password flow (placeholder exists)
 
 ## Implementation Plans
 
@@ -84,15 +92,15 @@
 
 ## Next Tasks
 
-1. **Merge PR #31** - Authentication & Identity implementation
-2. **Begin Sprint 2** - Wallet Core
-   - Design and implement wallet database schema
-   - Build wallet backend API (balance, fund, withdraw)
-   - Integrate Plaid for bank account linking
-   - Integrate Stripe for card processing
-   - Build wallet home screen with balance display
+1. **Mobile Auth Integration** - Replace Auth0 mobile SDK with custom auth API
+   - Create API client for auth endpoints
+   - Update AuthContext to use custom auth
+   - Keep existing biometric and PIN screens
+2. **Merge PR #36** - Custom Authentication backend
+3. **Continue Sprint 1** - Complete remaining mobile auth tasks
+4. **Begin Sprint 2** - Wallet Core (after Sprint 1 complete)
 
-See [SPRINTS.md](SPRINTS.md) for Sprint 2 details.
+See [SPRINTS.md](SPRINTS.md) for Sprint details.
 
 ## Blockers
 
@@ -100,15 +108,20 @@ None currently.
 
 ## Recent Changes
 
+**2026-02-09:**
+
+- ✅ PR #36 created: Custom Authentication implementation
+  - Argon2id password hashing (OWASP compliant)
+  - JWT token management with key versioning
+  - KV-based rate limiting
+  - Auth endpoints: register, login, logout, refresh
+  - Database schema updated for custom auth
+
 **2026-02-08:**
 
-- 🔄 PR #31 open: Authentication & Identity implementation (pending merge)
-  - Auth0 integration with login/register/logout
-  - Biometric authentication (Face ID/Touch ID)
-  - PIN setup and verification screens
-  - KYC verification placeholder screen
-- ✅ PR #29 merged: Prettier and CI/CD workflows
 - ✅ Deployed marketing website to https://tap2-wallet-marketing.pages.dev
+- ✅ Set up Prettier, pre-commit hooks (husky, lint-staged)
+- ✅ Created GitHub Actions CI/CD workflows
 
 **2026-02-05:**
 
@@ -120,6 +133,6 @@ None currently.
 
 - This is a greenfield project
 - Target platforms: iOS and Android (React Native)
-- Tech stack: Node.js/Express backend, PostgreSQL, Auth0, Stripe
+- Tech stack: Node.js, Cloudflare Workers, D1 database, Custom Auth (not Auth0)
 - See [ARCHITECTURE.md](ARCHITECTURE.md) for system design
 - See [SPRINTS.md](SPRINTS.md) for sprint breakdown

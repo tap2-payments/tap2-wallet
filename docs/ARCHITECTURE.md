@@ -39,57 +39,59 @@
 
 ### Mobile App (Consumer)
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Framework | React Native | Single codebase for iOS/Android |
-| State | Zustand | Lightweight, simple |
-| Navigation | React Navigation | Standard for RN |
-| Networking | Axios | HTTP client |
-| NFC | react-native-nfc-manager | NFC functionality |
-| Biometrics | react-native-biometrics | Face ID/Touch ID |
-| Camera | react-native-vision-camera | QR scanning |
+| Component  | Technology                 | Rationale                       |
+| ---------- | -------------------------- | ------------------------------- |
+| Framework  | React Native               | Single codebase for iOS/Android |
+| State      | Zustand                    | Lightweight, simple             |
+| Navigation | React Navigation           | Standard for RN                 |
+| Networking | Axios                      | HTTP client                     |
+| NFC        | react-native-nfc-manager   | NFC functionality               |
+| Biometrics | react-native-biometrics    | Face ID/Touch ID                |
+| Camera     | react-native-vision-camera | QR scanning                     |
 
 ### Backend Services
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| API Runtime | Cloudflare Workers / Pages Functions | Edge compute, global distribution |
-| Framework | Hono | Lightweight, edge-optimized, TypeScript-first |
-| Language | TypeScript | Type safety |
-| Database | Cloudflare D1 | Edge-native SQLite, zero cold starts |
-| ORM | Drizzle ORM | Type-safe, lightweight, D1-optimized |
-| Auth | Custom (Cloudflare) | JWT, Argon2, social OAuth, edge-native |
-| KYC | Persona | Identity verification |
-| Payments | Stripe | Card processing, payouts |
-| Email | Resend | Transactional emails |
-| SMS | Twilio | Phone verification |
-| Queue | Cloudflare Queues | Async job processing |
-| Cache | Cloudflare KV | Fast edge reads, rate limiting |
+| Component   | Technology                           | Rationale                                     |
+| ----------- | ------------------------------------ | --------------------------------------------- |
+| API Runtime | Cloudflare Workers / Pages Functions | Edge compute, global distribution             |
+| Framework   | Hono                                 | Lightweight, edge-optimized, TypeScript-first |
+| Language    | TypeScript                           | Type safety                                   |
+| Database    | Cloudflare D1                        | Edge-native SQLite, zero cold starts          |
+| ORM         | Drizzle ORM                          | Type-safe, lightweight, D1-optimized          |
+| Auth        | Custom (Cloudflare)                  | JWT, Argon2, social OAuth, edge-native        |
+| KYC         | Persona                              | Identity verification                         |
+| Payments    | Stripe                               | Card processing, payouts                      |
+| Email       | Resend                               | Transactional emails                          |
+| SMS         | Twilio                               | Phone verification                            |
+| Queue       | Cloudflare Queues                    | Async job processing                          |
+| Cache       | Cloudflare KV                        | Fast edge reads, rate limiting                |
 
 ### Infrastructure
 
-| Component | Technology | Rationale |
-|-----------|------------|-----------|
-| Cloud Platform | Cloudflare | All cloud services on single platform |
-| Compute | Cloudflare Workers / Pages Functions | Edge deployment, global latency |
-| CDN | Cloudflare CDN | Built-in to platform |
-| Database | Cloudflare D1 | Edge-native SQLite, global replication |
-| Storage | Cloudflare R2 / KV | Object storage, key-value cache |
-| Monitoring | Sentry | Error tracking |
-| Analytics | Cloudflare Web Analytics / Mixpanel | User analytics |
-| CI/CD | GitHub Actions + Wrangler | Automated deployments |
+| Component      | Technology                           | Rationale                              |
+| -------------- | ------------------------------------ | -------------------------------------- |
+| Cloud Platform | Cloudflare                           | All cloud services on single platform  |
+| Compute        | Cloudflare Workers / Pages Functions | Edge deployment, global latency        |
+| CDN            | Cloudflare CDN                       | Built-in to platform                   |
+| Database       | Cloudflare D1                        | Edge-native SQLite, global replication |
+| Storage        | Cloudflare R2 / KV                   | Object storage, key-value cache        |
+| Monitoring     | Sentry                               | Error tracking                         |
+| Analytics      | Cloudflare Web Analytics / Mixpanel  | User analytics                         |
+| CI/CD          | GitHub Actions + Wrangler            | Automated deployments                  |
 
 ## Service Boundaries
 
 ### Wallet Service
 
 **Responsibilities:**
+
 - Balance management
 - Transaction processing
 - Funding source management
 - Virtual card issuance
 
 **APIs:**
+
 ```
 GET    /v1/wallet/balance
 POST   /v1/wallet/fund
@@ -101,12 +103,14 @@ POST   /v1/wallet/funding-sources
 ### Payments Service
 
 **Responsibilities:**
+
 - P2P transfers
 - Merchant payments
 - Payment processing
 - Transaction history
 
 **APIs:**
+
 ```
 POST   /v1/payments/p2p
 POST   /v1/payments/merchant
@@ -117,12 +121,14 @@ GET    /v1/payments/:id/status
 ### Rewards Service
 
 **Responsibilities:**
+
 - Points calculation
 - Rewards redemption
 - Loyalty program integration
 - Rewards history
 
 **APIs:**
+
 ```
 GET    /v1/rewards/balance
 GET    /v1/rewards/history
@@ -133,12 +139,14 @@ GET    /v1/rewards/offers
 ### Identity Service
 
 **Responsibilities:**
+
 - User registration/login
 - KYC verification
 - Profile management
 - Security settings
 
 **APIs:**
+
 ```
 POST   /v1/auth/register
 POST   /v1/auth/login
@@ -152,6 +160,7 @@ PUT    /v1/auth/profile
 ### D1 Schema (SQLite)
 
 **Users Table**
+
 ```sql
 CREATE TABLE users (
   id TEXT PRIMARY KEY,
@@ -170,6 +179,7 @@ CREATE INDEX idx_users_social ON users(social_provider, social_id);
 ```
 
 **Sessions Table (KV-backed, cached in D1)**
+
 ```sql
 CREATE TABLE sessions (
   id TEXT PRIMARY KEY,
@@ -184,6 +194,7 @@ CREATE INDEX idx_sessions_device_id ON sessions(device_id);
 ```
 
 **MFA Secrets Table**
+
 ```sql
 CREATE TABLE mfa_secrets (
   id TEXT PRIMARY KEY,
@@ -197,6 +208,7 @@ CREATE INDEX idx_mfa_secrets_user_id ON mfa_secrets(user_id);
 ```
 
 **Wallets Table**
+
 ```sql
 CREATE TABLE wallets (
   id TEXT PRIMARY KEY,
@@ -210,6 +222,7 @@ CREATE INDEX idx_wallets_user_id ON wallets(user_id);
 ```
 
 **Transactions Table**
+
 ```sql
 CREATE TABLE transactions (
   id TEXT PRIMARY KEY,
@@ -227,6 +240,7 @@ CREATE INDEX idx_transactions_created_at ON transactions(created_at);
 ```
 
 **Rewards Table**
+
 ```sql
 CREATE TABLE rewards (
   id TEXT PRIMARY KEY,
@@ -244,75 +258,87 @@ CREATE INDEX idx_rewards_expires_at ON rewards(expires_at);
 ### Drizzle ORM Schema Example
 
 ```typescript
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
-import { sql } from 'drizzle-orm'
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   phone: text('phone').notNull().unique(),
-  passwordHash: text('password_hash'),  // Argon2id for password auth
-  socialProvider: text('social_provider'),  // 'apple', 'google', or NULL
-  socialId: text('social_id'),  // Provider's user ID
+  passwordHash: text('password_hash'), // Argon2id for password auth
+  socialProvider: text('social_provider'), // 'apple', 'google', or NULL
+  socialId: text('social_id'), // Provider's user ID
   kycVerified: integer('kyc_verified', { mode: 'boolean' }).default(false),
   kycVerifiedAt: text('kyc_verified_at'),
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
   updatedAt: text('updated_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
-})
+});
 
 export const sessions = sqliteTable('sessions', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
   deviceId: text('device_id').notNull(),
   refreshTokenHash: text('refresh_token_hash').notNull(),
   expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
-})
+});
 
 export const mfaSecrets = sqliteTable('mfa_secrets', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().unique().references(() => users.id),
-  secret: text('secret').notNull(),  // TOTP secret (encrypted at rest)
-  backupCodes: text('backup_codes'),  // JSON array of hashed codes
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  secret: text('secret').notNull(), // TOTP secret (encrypted at rest)
+  backupCodes: text('backup_codes'), // JSON array of hashed codes
   verified: integer('verified', { mode: 'boolean' }).default(false),
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
-})
+});
 
 export const wallets = sqliteTable('wallets', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
-  balance: integer('balance').default(0),  // Cents
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  balance: integer('balance').default(0), // Cents
   currency: text('currency').default('USD'),
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
   updatedAt: text('updated_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
-})
+});
 
 export const transactions = sqliteTable('transactions', {
   id: text('id').primaryKey(),
-  walletId: text('wallet_id').notNull().references(() => wallets.id),
-  type: text('type').notNull(),  // 'payment', 'p2p', 'fund', 'withdraw'
-  amount: integer('amount').notNull(),  // Cents
+  walletId: text('wallet_id')
+    .notNull()
+    .references(() => wallets.id),
+  type: text('type').notNull(), // 'payment', 'p2p', 'fund', 'withdraw'
+  amount: integer('amount').notNull(), // Cents
   status: text('status').default('pending'),
   referenceId: text('reference_id'),
-  metadata: text('metadata'),  // JSON string
+  metadata: text('metadata'), // JSON string
   createdAt: text('created_at').default(sql`strftime('%Y-%m-%dT%H:%M:%SZ', 'now')`),
-})
+});
 ```
 
 ### Financial Data Handling
 
 **Storing Amounts as Integers (Cents):**
+
 - SQLite doesn't have a native `DECIMAL` type
 - Store all monetary values as integers (cents)
 - `$100.50` → `10050`
 - Convert on read/write in application layer
 
 **UUIDs as TEXT:**
+
 - SQLite doesn't have native UUID type
 - Store as TEXT, generate in application layer
 - Use `crypto.randomUUID()` in Workers
 
 **Metadata as JSON:**
+
 - SQLite has JSON functions but D1 support is limited
 - Store as TEXT, parse in application
 - For complex queries, consider Durable Objects instead
@@ -320,22 +346,26 @@ export const transactions = sqliteTable('transactions', {
 ## Security Considerations
 
 ### Authentication
+
 - JWT tokens with short expiration (15 minutes)
 - Refresh tokens with rotation
 - Device binding for sensitive operations
 
 ### Authorization
+
 - Role-based access control (RBAC)
 - Per-user resource isolation
 - Admin-only operations protected
 
 ### Data Protection
+
 - Encryption at rest (database)
 - TLS 1.3 in transit
 - PII data hashed/salted
 - PCI DSS compliance for card data
 
 ### Rate Limiting
+
 - Per-user rate limits on API calls
 - Stricter limits on payment operations
 - IP-based blocking for abuse
@@ -343,6 +373,7 @@ export const transactions = sqliteTable('transactions', {
 ## Monitoring & Observability
 
 ### Metrics to Track
+
 - API response times (p50, p95, p99)
 - Payment success/failure rates
 - User registration/conversion
@@ -350,6 +381,7 @@ export const transactions = sqliteTable('transactions', {
 - Rewards redemption rates
 
 ### Alerts
+
 - Payment failures above threshold
 - API error rate spikes
 - Database connection issues
@@ -367,27 +399,29 @@ export const transactions = sqliteTable('transactions', {
 
 ### Cloudflare Services Used
 
-| Service | Purpose | Notes |
-|---------|---------|-------|
-| **Workers** | API compute | Edge Functions, sub-millisecond cold starts |
-| **Pages Functions** | Full-stack deployments | For static + dynamic content |
-| **D1** | Database | Edge SQLite, global replication |
-| **KV** | Key-value storage | Fast reads, rate limiting, session data |
-| **R2** | Object storage | User files, receipts, profile images |
-| **Queues** | Async jobs | Webhook processing, notifications |
-| **Durable Objects** | Stateful operations | Real-time features, strong consistency |
-| **Analytics** | Request metrics | Built-in, no extra code needed |
-| **Zero Trust** | Access control | Internal tool access |
+| Service             | Purpose                | Notes                                       |
+| ------------------- | ---------------------- | ------------------------------------------- |
+| **Workers**         | API compute            | Edge Functions, sub-millisecond cold starts |
+| **Pages Functions** | Full-stack deployments | For static + dynamic content                |
+| **D1**              | Database               | Edge SQLite, global replication             |
+| **KV**              | Key-value storage      | Fast reads, rate limiting, session data     |
+| **R2**              | Object storage         | User files, receipts, profile images        |
+| **Queues**          | Async jobs             | Webhook processing, notifications           |
+| **Durable Objects** | Stateful operations    | Real-time features, strong consistency      |
+| **Analytics**       | Request metrics        | Built-in, no extra code needed              |
+| **Zero Trust**      | Access control         | Internal tool access                        |
 
 ### Database: D1 + Drizzle
 
 **Why D1?**
+
 - **Edge-Native**: Data co-located with Workers, zero latency
 - **Automatic Replication**: Multi-region primary with read replicas
 - **Serverless**: Pay-per-query, no connection management
 - **SQLite**: Familiar SQL dialect, battle-tested
 
 **Why Drizzle?**
+
 - **D1 Optimized**: First-class Cloudflare Workers support
 - **Type-Safe**: TypeScript schema definitions
 - **Lightweight**: Smaller bundle than Prisma, faster cold starts
@@ -396,30 +430,31 @@ export const transactions = sqliteTable('transactions', {
 
 ```typescript
 // Cloudflare Worker with D1 + Drizzle
-import { drizzle } from 'drizzle-orm/d1'
-import { users, wallets } from './schema'
+import { drizzle } from 'drizzle-orm/d1';
+import { users, wallets } from './schema';
 
 export interface Env {
-  DB: D1Database
+  DB: D1Database;
 }
 
 export default {
   async fetch(request: Request, env: Env) {
-    const db = drizzle(env.DB)
+    const db = drizzle(env.DB);
 
     const wallet = await db.query.wallets.findFirst({
       where: eq(wallets.userId, userId),
-      with: { user: true }
-    })
+      with: { user: true },
+    });
 
-    return Response.json(wallet)
-  }
-}
+    return Response.json(wallet);
+  },
+};
 ```
 
 ### Rate Limiting Strategy
 
 Using Cloudflare KV + Workers:
+
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │ User Request │────▶│ KV Check     │────▶│ Allow/Deny   │
@@ -432,11 +467,13 @@ Per-user and per-IP limits with auto-expiration.
 ## Deployment Strategy
 
 ### Environments
+
 - **Development**: Local development with mock services
 - **Staging**: Pre-production testing environment
 - **Production**: Live environment
 
 ### CI/CD Pipeline
+
 1. Code push triggers GitHub Actions
 2. Run tests (unit, integration, E2E)
 3. Build Workers bundle (`wrangler deploy`)
@@ -448,6 +485,7 @@ Per-user and per-IP limits with auto-expiration.
 ## Future Considerations
 
 ### Scalability
+
 - **Automatic**: Cloudflare Workers auto-scale globally
 - **Database**: D1 automatic multi-region replication
 - **Caching**: Cloudflare KV for frequently-accessed data
@@ -455,6 +493,7 @@ Per-user and per-IP limits with auto-expiration.
 - **Durable Objects**: For stateful operations requiring strong consistency
 
 ### Feature Expansion
+
 - Virtual card integration
 - Budgeting and analytics
 - Bill pay features

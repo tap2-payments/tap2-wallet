@@ -22,31 +22,37 @@ Node.js/Express REST API for Tap2 Wallet.
 ### Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Copy environment variables:
+
 ```bash
 cp .env.example .env
 ```
 
 3. Configure your database URL in `.env`:
+
 ```bash
 DATABASE_URL="postgresql://user:password@localhost:5432/tap2_wallet?schema=public"
 ```
 
 4. Generate Prisma client:
+
 ```bash
 npm run prisma:generate
 ```
 
 5. Run database migrations:
+
 ```bash
 npm run prisma:migrate
 ```
 
 6. Start development server:
+
 ```bash
 npm run dev
 ```
@@ -54,14 +60,17 @@ npm run dev
 ## API Endpoints
 
 ### Health Check
+
 - **GET** `/health` - Server health status
 - **GET** `/api/v1/health` - Health check with database
 
 ### Wallet
+
 - **GET** `/api/v1/wallet/balance` - Get wallet balance
 - **GET** `/api/v1/wallet/transactions` - Get transaction history
 
 ### Payments
+
 - **POST** `/api/v1/payments/merchant` - Initiate merchant payment
 - **POST** `/api/v1/payments/nfc/initiate` - Initiate NFC payment
 - **POST** `/api/v1/payments/qr/process` - Process QR code payment
@@ -82,6 +91,7 @@ npm run dev
 The database schema is defined in `prisma/schema.prisma`.
 
 Key models:
+
 - `User` - User accounts
 - `Wallet` - User wallets with balance
 - `Transaction` - Payment transactions

@@ -10,12 +10,12 @@ This document outlines the technical implementation plan for the Tap-to-Pay feat
 
 ## User Stories in Scope
 
-| ID | Story | Priority |
-|----|-------|----------|
-| WALLET-001 | Tap phone to pay at any Tap2 merchant | P0 |
-| WALLET-002 | Scan QR code if NFC unavailable | P1 |
-| WALLET-003 | View payment history | P1 |
-| WALLET-004 | Add debit card as funding source | P0 |
+| ID         | Story                                 | Priority |
+| ---------- | ------------------------------------- | -------- |
+| WALLET-001 | Tap phone to pay at any Tap2 merchant | P0       |
+| WALLET-002 | Scan QR code if NFC unavailable       | P1       |
+| WALLET-003 | View payment history                  | P1       |
+| WALLET-004 | Add debit card as funding source      | P0       |
 
 ## Architecture Overview
 
@@ -117,6 +117,7 @@ CREATE TABLE merchant_payments (
 ### 1.2 Security Layer
 
 **Requirements:**
+
 - JWT authentication for all API calls
 - Device fingerprinting for fraud prevention
 - Request signing for NFC transactions
@@ -130,45 +131,48 @@ interface NFCPayload {
   amount: number;
   nonce: string;
   timestamp: number;
-  signature: string;  // HMAC-SHA256
+  signature: string; // HMAC-SHA256
 }
 ```
 
 ### 1.3 Infrastructure Setup
 
-| Component | Tool/Service | Purpose |
-|-----------|--------------|---------|
-| API Hosting | Fly.io / AWS | Backend deployment |
-| Database | PostgreSQL (Supabase/RDS) | Data persistence |
-| Queue | Redis/BullMQ | Async payment processing |
-| Monitoring | Sentry | Error tracking |
-| Logging | Datadog | Structured logs |
+| Component   | Tool/Service              | Purpose                  |
+| ----------- | ------------------------- | ------------------------ |
+| API Hosting | Fly.io / AWS              | Backend deployment       |
+| Database    | PostgreSQL (Supabase/RDS) | Data persistence         |
+| Queue       | Redis/BullMQ              | Async payment processing |
+| Monitoring  | Sentry                    | Error tracking           |
+| Logging     | Datadog                   | Structured logs          |
 
 ### 1.4 Network Resilience & Offline Support
 
 Payment transactions require reliable network connectivity. The following strategies ensure resilience:
 
 **Retry Strategy:**
+
 ```typescript
 // Exponential backoff for failed API calls
 const retryConfig = {
   maxRetries: 3,
-  initialDelay: 100,   // ms
-  maxDelay: 1000,      // ms
-  backoffMultiplier: 2
+  initialDelay: 100, // ms
+  maxDelay: 1000, // ms
+  backoffMultiplier: 2,
 };
 // Sequence: 100ms → 200ms → 400ms → (fail)
 ```
 
 **Offline Queue:**
+
 - Pending payments stored locally in AsyncStorage
 - Automatically sync when network restored
 - Conflict resolution: server timestamp takes precedence
 
 **Network Detection:**
+
 ```typescript
 // @react-native-community/netinfo
-const unsubscribe = await NetInfo.addEventListener(state => {
+const unsubscribe = await NetInfo.addEventListener((state) => {
   if (state.isConnected) {
     syncPendingPayments();
   }
@@ -201,13 +205,13 @@ Merchant devices broadcast payment data via NFC using the following NDEF format:
 // Payload: JSON string
 
 interface MerchantNDEFPayload {
-  v: string;        // Protocol version (e.g., "1.0")
-  m: string;        // Merchant Tap2 ID
-  n: string;        // Merchant display name
-  amt: number;      // Amount in cents (integer)
-  cur: string;      // Currency code (ISO 4217, default "USD")
-  ts: number;       // Unix timestamp
-  nonce: string;    // Cryptographic nonce for replay protection
+  v: string; // Protocol version (e.g., "1.0")
+  m: string; // Merchant Tap2 ID
+  n: string; // Merchant display name
+  amt: number; // Amount in cents (integer)
+  cur: string; // Currency code (ISO 4217, default "USD")
+  ts: number; // Unix timestamp
+  nonce: string; // Cryptographic nonce for replay protection
 }
 
 // Example:
@@ -215,6 +219,7 @@ interface MerchantNDEFPayload {
 ```
 
 **Security Notes:**
+
 - The `nonce` must be unique per payment session and verified by the backend
 - Timestamp should be validated within ±5 minutes to prevent replay attacks
 - Payload may optionally be signed by merchant private key for additional verification
@@ -289,11 +294,13 @@ export default new NFCService();
 iOS has unique requirements for NFC functionality that must be addressed:
 
 **Core NFC Framework:**
+
 - Requires iOS 13.0+
 - Uses `NFCReaderSession` API instead of Android-style tag discovery
 - Must present user-visible UI during scanning (Apple requirement)
 
 **Entitlements Required:**
+
 ```xml
 <!-- Entitlements.plist -->
 <key>com.apple.developer.nfc.readersession.formats</key>
@@ -303,12 +310,14 @@ iOS has unique requirements for NFC functionality that must be addressed:
 ```
 
 **Key Limitations:**
+
 - NFC scanning only works while app is in foreground
 - Background NFC detection is not supported
 - User must explicitly tap "Start Scanning" - can't auto-start on app launch
 - Session timeout after 60 seconds of inactivity (Apple enforced)
 
 **iOS-Native Implementation Layer:**
+
 ```typescript
 // ios/NFCReader.swift (bridged to React Native)
 import CoreNFC
@@ -323,6 +332,7 @@ class NFCReader: NSObject, NFCNDEFReaderSessionDelegate {
 ### Android-Specific NFC Requirements
 
 **Manifest Permissions:**
+
 ```xml
 <!-- AndroidManifest.xml -->
 <uses-permission android:name="android.permission.NFC" />
@@ -330,6 +340,7 @@ class NFCReader: NSObject, NFCNDEFReaderSessionDelegate {
 ```
 
 **Key Considerations:**
+
 - Can enable NFC in foreground without user prompt (after initial grant)
 - Supports broader range of tag technologies
 - Background tag detection possible with foreground dispatch
@@ -778,22 +789,22 @@ export function AddCardScreen() {
 
 ### Unit Tests
 
-| Component | Test Coverage Goal |
-|-----------|-------------------|
-| NFCService | 90% - Tag parsing, error handling |
-| QRScannerService | 90% - URL parsing, validation |
-| PaymentService | 95% - API calls, transaction logic |
-| CardService | 95% - Stripe integration |
+| Component        | Test Coverage Goal                 |
+| ---------------- | ---------------------------------- |
+| NFCService       | 90% - Tag parsing, error handling  |
+| QRScannerService | 90% - URL parsing, validation      |
+| PaymentService   | 95% - API calls, transaction logic |
+| CardService      | 95% - Stripe integration           |
 
 ### Integration Tests
 
-| Test Scenario | Expected Result |
-|---------------|-----------------|
+| Test Scenario                | Expected Result                 |
+| ---------------------------- | ------------------------------- |
 | NFC tap → payment initiation | Payment created, status pending |
 | QR scan → payment initiation | Payment created, status pending |
-| Payment confirmation | Status changes to completed |
-| Invalid card declined | Appropriate error message |
-| Network timeout | Retry mechanism triggered |
+| Payment confirmation         | Status changes to completed     |
+| Invalid card declined        | Appropriate error message       |
+| Network timeout              | Retry mechanism triggered       |
 
 ### E2E Tests
 
@@ -889,3 +900,4 @@ describe('Tap-to-Pay Flow', () => {
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture
 - [EPICS.md](EPICS.md) - User stories
 - [SPRINTS.md](SPRINTS.md) - Sprint planning and task breakdown
+```

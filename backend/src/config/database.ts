@@ -1,12 +1,12 @@
-import { drizzle } from 'drizzle-orm/d1'
-import * as schema from '../../drizzle/schema.js'
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from '../../drizzle/schema.js';
 
 /**
  * Initialize Drizzle ORM with D1 database binding
  * This is called in each Cloudflare Worker request handler
  */
 export function initDB(db: D1Database) {
-  return drizzle(db, { schema })
+  return drizzle(db, { schema });
 }
 
 /**
@@ -15,12 +15,12 @@ export function initDB(db: D1Database) {
  */
 export async function healthCheck(db: D1Database): Promise<boolean> {
   try {
-    await db.prepare('SELECT 1').first()
-    return true
+    await db.prepare('SELECT 1').first();
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 // Re-export schema for convenience
-export * from '../../drizzle/schema.js'
+export * from '../../drizzle/schema.js';
