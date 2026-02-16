@@ -1,19 +1,71 @@
 import * as SecureStore from 'expo-secure-store';
+import { z } from 'zod';
 
 import { axiosInstance } from './api';
 
-// API base URL
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
+// API base URL - fail fast if not configured
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+if (!API_BASE_URL) {
+  console.warn('EXPO_PUBLIC_API_URL not set, using localhost fallback');
+}
 
 // Storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user';
+const TOKEN_EXPIRES_AT_KEY = 'token_expires_at';
+
+// Zod schemas for API response validation
+const AuthTokensSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  expiresIn: z.number(),
+});
+
+const AuthUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  phone: z.string(),
+  kycVerified: z.boolean().optional(),
+  createdAt: z.string().optional(),
+});
+
+const LoginResponseSchema = z.object({
+  user: AuthUserSchema,
+  tokens: AuthTokensSchema,
+});
+
+const ErrorResponseSchema = z.object({
+  error: z.string().optional(),
+  message: z.string().optional(),
+});
+
+// E.164 phone number validation
+const PHONE_REGEX = /^\+?[1-9]\d{1,14}$/;
+
+function validatePhoneNumber(phone: string): boolean {
+  return PHONE_REGEX.test(phone);
+}
+
+// Calculate expiry timestamp
+function calculateExpiresAt(expiresInSeconds: number): number {
+  return Date.now() + expiresInSeconds * 1000;
+}
+
+// Check if token is expired or will expire soon (within 60 seconds)
+function isTokenExpired(expiresAt: number): boolean {
+  return Date.now() >= expiresAt - 60000;
+}
+
+function getApiBaseUrl(): string {
+  return API_BASE_URL || 'http://localhost:8080/api/v1';
+}
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  expiresAt?: number; // Unix timestamp for proactive refresh
 }
 
 export interface AuthUser {
@@ -47,6 +99,8 @@ class AuthService {
 
   private listeners: Set<(state: AuthState) => void> = new Set();
   private refreshPromise: Promise<AuthTokens | null> | null = null;
+  private refreshFailureCount = 0;
+  private maxRefreshRetries = 3;
 
   /**
    * Initialize the auth service and check for existing session
@@ -65,19 +119,56 @@ class AuthService {
 
       if (accessToken && userStr) {
         const user = JSON.parse(userStr) as AuthUser;
-        this.state = {
-          isAuthenticated: true,
-          isLoading: false,
-          user,
-          tokens: {
-            accessToken,
-            refreshToken: refreshToken || '',
-            expiresIn: 0, // Will be validated on API calls
-          },
-        };
 
-        // Configure axios with auth token
-        this.configureAxios(accessToken);
+        // Check if stored token is expired
+        const expiresAtStr = await SecureStore.getItemAsync(TOKEN_EXPIRES_AT_KEY);
+        const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
+
+        if (expiresAt && isTokenExpired(expiresAt)) {
+          // Token expired, try to refresh or clear session
+          if (refreshToken) {
+            this.state = {
+              isAuthenticated: true,
+              isLoading: false,
+              user,
+              tokens: {
+                accessToken,
+                refreshToken,
+                expiresIn: 0,
+                expiresAt,
+              },
+            };
+            // Proactively refresh expired token
+            this.refreshTokens().catch(() => {
+              // If refresh fails, clear session
+              this.clearSession();
+            });
+          } else {
+            // No refresh token, clear session
+            await this.clearStorage();
+            this.state = {
+              isAuthenticated: false,
+              isLoading: false,
+              user: null,
+              tokens: null,
+            };
+          }
+        } else {
+          this.state = {
+            isAuthenticated: true,
+            isLoading: false,
+            user,
+            tokens: {
+              accessToken,
+              refreshToken: refreshToken || '',
+              expiresIn: 0,
+              expiresAt,
+            },
+          };
+
+          // Configure axios with auth token
+          this.configureAxios(accessToken);
+        }
       } else {
         this.state = {
           isAuthenticated: false,
@@ -106,7 +197,7 @@ class AuthService {
    */
   async login(email: string, password: string): Promise<AuthUser> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -117,36 +208,54 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed. Please check your credentials.');
+        const errorResult = ErrorResponseSchema.safeParse(data);
+        const errorMessage = errorResult.success
+          ? errorResult.data.error || errorResult.data.message
+          : 'Login failed';
+        throw new Error(errorMessage || 'Login failed. Please check your credentials.');
       }
 
+      const result = LoginResponseSchema.safeParse(data);
+      if (!result.success) {
+        console.error('Invalid API response:', result.error);
+        throw new Error('Invalid response from server');
+      }
+
+      const { user: userData, tokens: tokensData } = result.data;
+      const expiresAt = calculateExpiresAt(tokensData.expiresIn);
+
       const user: AuthUser = {
-        id: data.user.id,
-        email: data.user.email,
-        phone: data.user.phone,
-        kycVerified: data.user.kycVerified || false,
-        createdAt: data.user.createdAt || new Date().toISOString(),
+        id: userData.id,
+        email: userData.email,
+        phone: userData.phone,
+        kycVerified: userData.kycVerified ?? false,
+        createdAt: userData.createdAt ?? new Date().toISOString(),
       };
 
-      // Store tokens securely
+      // Store tokens securely including expiresAt
       await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokensData.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokensData.refreshToken),
         SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+        SecureStore.setItemAsync(TOKEN_EXPIRES_AT_KEY, expiresAt.toString()),
       ]);
+
+      // Reset refresh failure count on successful login
+      this.refreshFailureCount = 0;
 
       this.state = {
         isAuthenticated: true,
         isLoading: false,
         user,
         tokens: {
-          accessToken: data.tokens.accessToken,
-          refreshToken: data.tokens.refreshToken,
-          expiresIn: data.tokens.expiresIn || 900,
+          accessToken: tokensData.accessToken,
+          refreshToken: tokensData.refreshToken,
+          expiresIn: tokensData.expiresIn,
+          expiresAt,
         },
       };
 
-      this.configureAxios(data.tokens.accessToken);
+      this.configureAxios(tokensData.accessToken);
       this.notifyListeners();
 
       return user;
@@ -159,11 +268,18 @@ class AuthService {
   }
 
   /**
-   * Register a new user with email and password
+   * Register a new user with email, password, and phone
    */
   async register(email: string, password: string, phone: string): Promise<AuthUser> {
+    // Validate phone number format (E.164)
+    if (!validatePhoneNumber(phone)) {
+      throw new Error(
+        'Invalid phone number format. Please use international format (e.g., +1234567890)'
+      );
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,36 +290,54 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed. Please try again.');
+        const errorResult = ErrorResponseSchema.safeParse(data);
+        const errorMessage = errorResult.success
+          ? errorResult.data.error || errorResult.data.message
+          : 'Registration failed';
+        throw new Error(errorMessage || 'Registration failed. Please try again.');
       }
 
+      const result = LoginResponseSchema.safeParse(data);
+      if (!result.success) {
+        console.error('Invalid API response:', result.error);
+        throw new Error('Invalid response from server');
+      }
+
+      const { user: userData, tokens: tokensData } = result.data;
+      const expiresAt = calculateExpiresAt(tokensData.expiresIn);
+
       const user: AuthUser = {
-        id: data.user.id,
-        email: data.user.email,
-        phone: data.user.phone,
+        id: userData.id,
+        email: userData.email,
+        phone: userData.phone,
         kycVerified: false,
-        createdAt: data.user.createdAt || new Date().toISOString(),
+        createdAt: userData.createdAt ?? new Date().toISOString(),
       };
 
       // Store tokens (user is automatically logged in after registration)
       await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokensData.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokensData.refreshToken),
         SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+        SecureStore.setItemAsync(TOKEN_EXPIRES_AT_KEY, expiresAt.toString()),
       ]);
+
+      // Reset refresh failure count on successful registration
+      this.refreshFailureCount = 0;
 
       this.state = {
         isAuthenticated: true,
         isLoading: false,
         user,
         tokens: {
-          accessToken: data.tokens.accessToken,
-          refreshToken: data.tokens.refreshToken,
-          expiresIn: data.tokens.expiresIn || 900,
+          accessToken: tokensData.accessToken,
+          refreshToken: tokensData.refreshToken,
+          expiresIn: tokensData.expiresIn,
+          expiresAt,
         },
       };
 
-      this.configureAxios(data.tokens.accessToken);
+      this.configureAxios(tokensData.accessToken);
       this.notifyListeners();
 
       return user;
@@ -222,9 +356,11 @@ class AuthService {
     try {
       // Call backend logout endpoint to invalidate session
       const refreshToken = this.state.tokens?.refreshToken;
+      let backendLogoutFailed = false;
+
       if (refreshToken) {
         try {
-          await fetch(`${API_BASE_URL}/auth/logout`, {
+          const response = await fetch(`${getApiBaseUrl()}/auth/logout`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -232,17 +368,19 @@ class AuthService {
             },
             body: JSON.stringify({ refreshToken }),
           });
+
+          if (!response.ok) {
+            backendLogoutFailed = true;
+            console.warn('Backend logout returned non-OK status:', response.status);
+          }
         } catch (error) {
+          backendLogoutFailed = true;
           console.error('Backend logout failed:', error);
           // Continue with local logout even if backend call fails
         }
       }
 
-      await Promise.all([
-        SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-        SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-        SecureStore.deleteItemAsync(USER_KEY),
-      ]);
+      await this.clearStorage();
 
       this.state = {
         isAuthenticated: false,
@@ -253,10 +391,34 @@ class AuthService {
 
       this.configureAxios('');
       this.notifyListeners();
+
+      if (backendLogoutFailed) {
+        console.warn('Session was logged out locally, but backend session may still be active');
+      }
     } catch (error) {
       console.error('Logout failed:', error);
       throw new Error('Failed to logout');
     }
+  }
+
+  private async clearStorage(): Promise<void> {
+    await Promise.all([
+      SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+      SecureStore.deleteItemAsync(USER_KEY),
+      SecureStore.deleteItemAsync(TOKEN_EXPIRES_AT_KEY),
+    ]);
+  }
+
+  private clearSession(): void {
+    this.state = {
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      tokens: null,
+    };
+    this.configureAxios('');
+    this.notifyListeners();
   }
 
   /**
@@ -285,8 +447,24 @@ class AuthService {
       return null;
     }
 
+    // Exponential backoff for failed refresh attempts
+    if (this.refreshFailureCount >= this.maxRefreshRetries) {
+      console.error('Max refresh retries reached, logging out');
+      await this.logout();
+      return null;
+    }
+
+    // Calculate delay with exponential backoff: 2^failureCount seconds, max 30 seconds
+    const backoffDelay = Math.min(Math.pow(2, this.refreshFailureCount) * 1000, 30000);
+    if (this.refreshFailureCount > 0) {
+      console.log(
+        `Retrying token refresh after ${backoffDelay}ms (attempt ${this.refreshFailureCount + 1})`
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -297,30 +475,62 @@ class AuthService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Token refresh failed');
+        const errorResult = ErrorResponseSchema.safeParse(data);
+        const errorMessage = errorResult.success
+          ? errorResult.data.error || errorResult.data.message
+          : 'Token refresh failed';
+
+        this.refreshFailureCount++;
+        throw new Error(errorMessage || 'Token refresh failed');
       }
 
+      const tokensResult = AuthTokensSchema.safeParse(data.tokens);
+      if (!tokensResult.success) {
+        console.error('Invalid token response:', tokensResult.error);
+        this.refreshFailureCount++;
+        throw new Error('Invalid token response from server');
+      }
+
+      const tokensData = tokensResult.data;
+      const expiresAt = calculateExpiresAt(tokensData.expiresIn);
+
       await Promise.all([
-        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, data.tokens.accessToken),
-        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, data.tokens.refreshToken),
+        SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokensData.accessToken),
+        SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokensData.refreshToken),
+        SecureStore.setItemAsync(TOKEN_EXPIRES_AT_KEY, expiresAt.toString()),
       ]);
 
+      // Reset failure count on successful refresh
+      this.refreshFailureCount = 0;
+
       this.state.tokens = {
-        accessToken: data.tokens.accessToken,
-        refreshToken: data.tokens.refreshToken,
-        expiresIn: data.tokens.expiresIn || 900,
+        accessToken: tokensData.accessToken,
+        refreshToken: tokensData.refreshToken,
+        expiresIn: tokensData.expiresIn,
+        expiresAt,
       };
 
-      this.configureAxios(data.tokens.accessToken);
+      this.configureAxios(tokensData.accessToken);
       this.notifyListeners();
 
       return this.state.tokens;
     } catch (error) {
       console.error('Token refresh failed:', error);
-      // Logout on failed refresh
-      await this.logout();
-      return null;
+      // Logout on critical failures or after max retries
+      if (this.refreshFailureCount >= this.maxRefreshRetries) {
+        await this.logout();
+        return null;
+      }
+      throw error;
     }
+  }
+
+  /**
+   * Check if current token needs refresh (expires within 60 seconds)
+   */
+  needsTokenRefresh(): boolean {
+    const expiresAt = this.state.tokens?.expiresAt;
+    return expiresAt ? isTokenExpired(expiresAt) : false;
   }
 
   /**

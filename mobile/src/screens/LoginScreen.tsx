@@ -46,6 +46,15 @@ export function LoginScreen(): React.JSX.Element {
         Alert.alert('Error', 'Please enter your phone number');
         return false;
       }
+      // Validate E.164 phone format
+      const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(phone)) {
+        Alert.alert(
+          'Error',
+          'Please enter a valid phone number in international format (e.g., +1234567890)'
+        );
+        return false;
+      }
       if (password !== confirmPassword) {
         Alert.alert('Error', 'Passwords do not match');
         return false;
