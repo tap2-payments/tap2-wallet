@@ -247,7 +247,7 @@ rewardsRouter.post('/earn', async (c) => {
 
     // Calculate expiration (1 year from now)
     const now = new Date();
-    const expiresAt = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
     // Award points
     const [reward] = await db
@@ -286,7 +286,7 @@ rewardsRouter.get('/merchants', async (c) => {
         businessType: merchants.businessType,
       })
       .from(merchants)
-      .where(sql`active = 1`)
+      .where(eq(merchants.isActive, true))
       .orderBy(merchants.businessName);
 
     return c.json({ merchants: merchantList });
